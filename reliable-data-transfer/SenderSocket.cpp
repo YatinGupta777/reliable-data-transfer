@@ -53,9 +53,13 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
     ssh->sdh.flags.SYN = 1;
     ssh->sdh.flags.FIN = 0;
     ssh->sdh.flags.ACK = 0;
-
     ssh->sdh.seq = 0;
-    ssh->lp = *lp;
+
+    ssh->lp.RTT = lp->RTT;
+    ssh->lp.speed = lp->speed; 
+    ssh->lp.pLoss[FORWARD_PATH] = lp->pLoss[FORWARD_PATH];
+    ssh->lp.pLoss[RETURN_PATH] = lp->pLoss[RETURN_PATH];
+    ssh->lp.bufferSize = senderWindow + 3;
 
     if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
     {
@@ -72,7 +76,7 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
 
     struct sockaddr_in res_server;
     int res_server_size = sizeof(res_server);
-    ReceiverHeader rh;
+    char* res_buf = new char[sizeof(ReceiverHeader)];
 
     int available = select(0, &fd, NULL, NULL, &tp);
 
@@ -88,7 +92,9 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
 
     if (available > 0)
     {
-        int bytes_received = recvfrom(sock, (char*)&rh, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+        int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+
+        printf("%d AA %d \n ", bytes_received, sizeof(ReceiverHeader));
 
         if (res_server.sin_addr.S_un.S_addr != server.sin_addr.S_un.S_addr || res_server.sin_port != server.sin_port) {
             printf("++ invalid reply: wrong server replied\n");
@@ -100,6 +106,12 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
             printf("socket error %d\n", WSAGetLastError());
             return 0;
         };
+
+        ReceiverHeader* rh = (ReceiverHeader*)res_buf;
+
+        if (rh->flags.SYN == 1 && rh->flags.ACK == 1) {
+            printf("YO");
+        }
     }
 
 }
