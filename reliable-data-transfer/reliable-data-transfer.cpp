@@ -40,10 +40,10 @@ int main(int argc, char** argv)
     char* targetHost = argv[1];
     int power = atoi(argv[2]); 
     int senderWindow = atoi(argv[3]); 
-    char* rtt = argv[4];
-    char* loss_prob_fwd = argv[5];
-    char* loss_prob_rev = argv[6];
-    char* bottleneck_link_speed = argv[7];
+    double rtt = atof(argv[4]);
+    double loss_prob_fwd = atof(argv[5]);
+    double loss_prob_rev = atof(argv[6]);
+    double bottleneck_link_speed = atof(argv[7]);
 
     UINT64 dwordBufSize = (UINT64)1 << power;
     DWORD* dwordBuf = new DWORD[dwordBufSize]; // user-requested buffer
@@ -51,10 +51,13 @@ int main(int argc, char** argv)
         dwordBuf[i] = i;
 
     LinkProperties lp;
-    lp.RTT = atof(rtt);
-    lp.speed = 1e6 * atof(bottleneck_link_speed); // convert to megabits
-    lp.pLoss[FORWARD_PATH] = atof(loss_prob_fwd);
-    lp.pLoss[RETURN_PATH] = atof(loss_prob_rev);
+    lp.RTT = rtt;
+    lp.speed = 1e6 * bottleneck_link_speed; // convert to megabits
+    lp.pLoss[FORWARD_PATH] = loss_prob_fwd;
+    lp.pLoss[RETURN_PATH] = loss_prob_rev;
+
+    printf("Main : sender W = %d, RTT %.3f sec, loss %g / %g, link %.3f Mbps\n", senderWindow, rtt, 
+        loss_prob_fwd, loss_prob_rev, bottleneck_link_speed);
 
     SenderSocket ss; // instance of your class
     DWORD status;

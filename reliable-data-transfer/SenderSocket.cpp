@@ -59,6 +59,7 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
     ssh->lp.speed = lp->speed; 
     ssh->lp.pLoss[FORWARD_PATH] = lp->pLoss[FORWARD_PATH];
     ssh->lp.pLoss[RETURN_PATH] = lp->pLoss[RETURN_PATH];
+   
     ssh->lp.bufferSize = senderWindow + 3;
 
     if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
@@ -95,6 +96,8 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
         int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
 
         printf("%d AA %d \n ", bytes_received, sizeof(ReceiverHeader));
+
+        printf("AAA %d", bytes_received);
 
         if (res_server.sin_addr.S_un.S_addr != server.sin_addr.S_un.S_addr || res_server.sin_port != server.sin_port) {
             printf("++ invalid reply: wrong server replied\n");
