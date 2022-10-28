@@ -6,8 +6,11 @@
 
 #ifndef PCH_H
 #define PCH_H
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 
 // add headers that you want to pre-compile here
 #include<winsock2.h>
+#include <iostream>
 
 #endif //PCH_H
