@@ -28,6 +28,8 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
     server.sin_family = AF_INET;
     server.sin_port = htons(port); 
 
+    printf("PORT %d", port);
+
     DWORD IP = inet_addr(host);
     if (IP == INADDR_NONE)
     {
@@ -49,8 +51,7 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
     SenderSynHeader* ssh = new SenderSynHeader();
 
     ssh->sdh.flags.reserved = 0;
-    ssh->sdh.flags.magic = port;
-    ssh->sdh.flags.SYN = 1;
+    ssh->sdh.flags.SYN = 0x1;
     ssh->sdh.flags.FIN = 0;
     ssh->sdh.flags.ACK = 0;
     ssh->sdh.seq = 0;
@@ -96,10 +97,6 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
         if (available > 0)
         {
             int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
-
-            printf("%d AA %d \n ", bytes_received, sizeof(ReceiverHeader));
-
-            printf("AAA %d", bytes_received);
 
             if (res_server.sin_addr.S_un.S_addr != server.sin_addr.S_un.S_addr || res_server.sin_port != server.sin_port) {
                 printf("++ invalid reply: wrong server replied\n");
