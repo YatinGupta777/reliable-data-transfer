@@ -90,6 +90,6 @@ int main(int argc, char** argv)
         printf("Main : connect failed with status %d", status);
         return 0;
     }
-    printf("Main:\ttransfer finished in %.3f sec\n", (float)(end_t - start_t) / (float)1000);
+    printf("Main:\ttransfer finished in %.3f sec\n", (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000);
         // error handing: print status and quit 
 }

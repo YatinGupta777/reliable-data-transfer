@@ -6,6 +6,8 @@ SenderSocket::SenderSocket() {
     current_time = clock();
     syn_start_time = clock();
     syn_end_time = clock();
+    fin_start_time = clock();
+    fin_end_time = clock();
     connection_open = false;
     rto = 1;
 }
@@ -144,6 +146,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
     ssh->lp = *lp;
     ssh->lp.bufferSize = senderWindow + MAX_ATTEMPTS;
 
+    fin_start_time = clock() - start_time;
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
         current_time = clock() - start_time;
         printf("[%.3f] --> FIN 0 (attempt %d of %d, RTO %.3f) \n", (float)(current_time / (float)1000), i + 1, MAX_ATTEMPTS, rto);
@@ -191,6 +194,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 
             if (rh->flags.FIN == 1 && rh->flags.ACK == 1) {
                 current_time = clock() - start_time;
+                fin_end_time = current_time;
                 printf("[%.3f] <-- FIN-ACK 0 window %d\n", (float)(current_time / (float)1000), rh->recvWnd);
                 connection_open = false;
                 return STATUS_OK;
