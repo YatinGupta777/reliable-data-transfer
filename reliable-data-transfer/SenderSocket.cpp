@@ -46,7 +46,8 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
         // if not a valid IP, then do a DNS lookup
         if ((remote = gethostbyname(host)) == NULL)
         {
-            printf("failed with %d\n", WSAGetLastError());
+            current_time = clock() - start_time;
+            printf("[%.3f] --> target %s is invalid\n", (float)(current_time / (float)1000), host);
             return INVALID_NAME;
         }
         else { // take the first IP address and copy into sin_addr
@@ -98,6 +99,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
         if (available == SOCKET_ERROR)
         {
+            current_time = clock() - start_time;
             printf("[%.3f] <-- failed recvfrom with %d\n", (float)(current_time / (float)1000), WSAGetLastError());
             return FAILED_RECV;
         };
@@ -108,6 +110,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
             if (bytes_received == SOCKET_ERROR)
             {
+                current_time = clock() - start_time;
                 printf("[%.3f] <-- failed recvfrom with %d\n", (float)(current_time / (float)1000), WSAGetLastError());
                 return FAILED_RECV;
             };

@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 {
     if (argc != 8)
     {
-        printf("Invalid Usage: Required destination server(hostname or IP), a power - of - 2 buffer size to be transmitted(in DWORDs), sender window(in packets), the round - trip propagation delay(in seconds), the probability of loss in each direction, and the speed of the bottleneck link(in Mbps)");
+        printf("Invalid Usage: [hostname or IP], [a power of 2 buffer size], [sender window], [rtt], [fwd loss], [backward loss], [link speed]");
         return 0;
     }
 
@@ -38,9 +38,9 @@ int main(int argc, char** argv)
     double rtt = atof(argv[4]);
     double loss_prob_fwd = atof(argv[5]);
     double loss_prob_rev = atof(argv[6]);
-    double bottleneck_link_speed = atof(argv[7]);
+    int bottleneck_link_speed = atof(argv[7]);
 
-    printf("Main:\tsender W = %d, RTT %.3f sec, loss %g / %g, link %.3f Mbps\n", senderWindow, rtt,
+    printf("Main:\tsender W = %d, RTT %.3f sec, loss %g / %g, link %d Mbps\n", senderWindow, rtt,
         loss_prob_fwd, loss_prob_rev, bottleneck_link_speed);
 
     printf("Main:\tinitializing DWORD array with 2^%d elements...", power);
@@ -93,3 +93,5 @@ int main(int argc, char** argv)
     printf("Main:\ttransfer finished in %.3f sec\n", (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000);
         // error handing: print status and quit 
 }
+
+//C:\Users\yatingupta\source\repos\YatinGupta777\reliable-data-transfer\x64\Debug
