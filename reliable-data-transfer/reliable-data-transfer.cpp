@@ -77,6 +77,7 @@ int main(int argc, char** argv)
     //    //    // error handing: print status and quit
     //    //    off += bytes;
     //}
-   // if ((status = ss.Close()) != STATUS_OK){}
+    if ((status = ss.Close(senderWindow, &lp)) != STATUS_OK){
+    }
         // error handing: print status and quit 
 }

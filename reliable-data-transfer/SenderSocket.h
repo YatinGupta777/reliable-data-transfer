@@ -53,8 +53,10 @@ public:
 #pragma pack(pop)
 
 class SenderSocket {
+    SOCKET sock;
+    struct sockaddr_in server;
 public:
     DWORD Open(char* host, int port, int senderWindow, LinkProperties* lp);
     DWORD Send();
-    DWORD Close();
+    DWORD Close(int senderWindow, LinkProperties* lp);
 };
