@@ -65,7 +65,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
     ssh->sdh.seq = 0;
 
     ssh->lp = *lp;
-    ssh->lp.bufferSize = senderWindow + 3;
+    ssh->lp.bufferSize = senderWindow + MAX_SYN_ATTEMPTS;
     syn_start_time = clock() - start_time;
     for (int i = 0; i < MAX_SYN_ATTEMPTS; i++) {
         current_time = clock() - start_time;
@@ -73,7 +73,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
-            printf("failed sendto with %d\n", WSAGetLastError());
+            printf("[%.3f] --> failed sendto with %d\n", (float)(current_time / (float)1000), WSAGetLastError());
             return FAILED_SEND;
         };
 
@@ -96,7 +96,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
         if (available == SOCKET_ERROR)
         {
-            printf("failed recvfrom with %d\n", WSAGetLastError());
+            printf("[%.3f] <-- failed recvfrom with %d\n", (float)(current_time / (float)1000), WSAGetLastError());
             return FAILED_RECV;
         };
 
@@ -106,7 +106,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
             if (bytes_received == SOCKET_ERROR)
             {
-                printf("failed recvfrom with %d\n", WSAGetLastError());
+                printf("[%.3f] <-- failed recvfrom with %d\n", (float)(current_time / (float)1000), WSAGetLastError());
                 return FAILED_RECV;
             };
 
@@ -142,7 +142,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
     ssh->sdh.seq = 0;
 
     ssh->lp = *lp;
-    ssh->lp.bufferSize = senderWindow + 3;
+    ssh->lp.bufferSize = senderWindow + MAX_ATTEMPTS;
 
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
         current_time = clock() - start_time;
