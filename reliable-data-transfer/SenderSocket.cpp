@@ -4,6 +4,7 @@
 SenderSocket::SenderSocket() {
     start_time = clock();
     current_time = clock();
+    rto = 1;
 }
 
 int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
@@ -63,7 +64,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
     for (int i = 0; i < 3; i++) {
         current_time = clock() - start_time;
-        printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO) to \n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS);
+        printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO %.3f) to \n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS, rto);
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
@@ -113,8 +114,10 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
             if (rh->flags.SYN == 1 && rh->flags.ACK == 1) {
+                clock_t temp = current_time;
                 current_time = clock() - start_time;
-                printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to \n", (float)(current_time / (float)1000), rh->recvWnd);
+                rto = ((float)((current_time) -temp) * 3) / 1000;
+                printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to %.3f\n", (float)(current_time / (float)1000), rh->recvWnd, rto);
                 return STATUS_OK;
             }
         }
@@ -133,9 +136,9 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
     ssh->lp = *lp;
     ssh->lp.bufferSize = senderWindow + 3;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < MAX_ATTEMPTS; i++) {
         current_time = clock() - start_time;
-        printf("[%.3f] --> FIN 0 (attempt %d of %d, RTO) \n", (float)(current_time / (float)1000), i + 1, MAX_ATTEMPTS);
+        printf("[%.3f] --> FIN 0 (attempt %d of %d, RTO %.3f) \n", (float)(current_time / (float)1000), i + 1, MAX_ATTEMPTS, rto);
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {

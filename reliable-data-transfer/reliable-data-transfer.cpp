@@ -13,11 +13,6 @@
 #include "SenderSocket.h" 
 #pragma comment(lib, "ws2_32.lib")
 
-
-//destination
-//server(hostname or IP), a power - of - 2 buffer size to be transmitted(in DWORDs), sender window(in packets), the round - trip propagation delay(in seconds), the probability of loss in each
-//direction, and the speed of the bottleneck link(in Mbps)
-
 int main(int argc, char** argv)
 {
     if (argc != 8)
@@ -75,21 +70,25 @@ int main(int argc, char** argv)
 
     }
     end_t = clock();
+    start_t = clock();
     printf("Main:\tconnected to %s in %.3f sec, pkt size bytes\n", targetHost, (float)(end_t-start_t)/1000);
 
-    //char* charBuf = (char*)dwordBuf; // this buffer goes into socket
-    //UINT64 byteBufferSize = dwordBufSize << 2; // convert to bytes
-    //UINT64 off = 0; // current position in buffer
-    //while (off < byteBufferSize)
-    //{
-    //    // decide the size of next chunk
-    //    //int bytes = min(byteBufferSize - off, MAX_PKT_SIZE - sizeof(SenderDataHeader));
-    //    //// send chunk into socket
-    //    //if ((status = ss.Send(charBuf + off, bytes)) != STATUS_OK)
-    //    //    // error handing: print status and quit
-    //    //    off += bytes;
-    //}
+    char* charbuf = (char*)dwordBuf; // this buffer goes into socket
+    UINT64 bytebuffersize = dwordBufSize << 2; // convert to bytes
+    UINT64 off = 0; // current position in buffer
+    while (off < bytebuffersize)
+    {
+        // decide the size of next chunk
+        //int bytes = min(bytebuffersize - off, max_pkt_size - sizeof(senderdataheader));
+        //// send chunk into socket
+        //if ((status = ss.send(charbuf + off, bytes)) != status_ok)
+        //    // error handing: print status and quit
+        //    off += bytes;
+        off += 10000;
+    }
+    end_t = clock();
     if ((status = ss.Close(senderWindow, &lp)) != STATUS_OK){
     }
+    printf("Main:\ttransfer finished in %.3f sec\n", (float)(end_t - start_t) / (float)1000);
         // error handing: print status and quit 
 }
