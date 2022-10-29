@@ -15,6 +15,9 @@
 #define FORWARD_PATH 0
 #define RETURN_PATH 1 
 
+#define MAX_SYN_ATTEMPTS 3
+#define MAX_ATTEMPTS 5
+
 #pragma pack(push,1) 
 class Flags {
 public:
@@ -55,8 +58,10 @@ public:
 class SenderSocket {
     SOCKET sock;
     struct sockaddr_in server;
+    clock_t start_time, current_time;
 public:
-    DWORD Open(char* host, int port, int senderWindow, LinkProperties* lp);
-    DWORD Send();
-    DWORD Close(int senderWindow, LinkProperties* lp);
+    SenderSocket();
+    int Open(char* host, int port, int senderWindow, LinkProperties* lp);
+    int Send();
+    int Close(int senderWindow, LinkProperties* lp);
 };

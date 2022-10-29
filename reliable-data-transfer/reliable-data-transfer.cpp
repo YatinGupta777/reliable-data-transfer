@@ -45,26 +45,38 @@ int main(int argc, char** argv)
     double loss_prob_rev = atof(argv[6]);
     double bottleneck_link_speed = atof(argv[7]);
 
+    printf("Main:\tsender W = %d, RTT %.3f sec, loss %g / %g, link %.3f Mbps\n", senderWindow, rtt,
+        loss_prob_fwd, loss_prob_rev, bottleneck_link_speed);
+
+    printf("Main:\tinitializing DWORD array with 2^%d elements...", power);
+    clock_t start_t, end_t;
+
+    start_t = clock();
+
     UINT64 dwordBufSize = (UINT64)1 << power;
     DWORD* dwordBuf = new DWORD[dwordBufSize]; // user-requested buffer
     for (UINT64 i = 0; i < dwordBufSize; i++) // required initialization
         dwordBuf[i] = i;
 
+    end_t = clock();
+
+    printf(" done in %d ms\n", (end_t - start_t));
+    
     LinkProperties lp;
     lp.RTT = rtt;
     lp.speed = 1e6 * bottleneck_link_speed; // convert to megabits
     lp.pLoss[FORWARD_PATH] = loss_prob_fwd;
     lp.pLoss[RETURN_PATH] = loss_prob_rev;
 
-    printf("Main : sender W = %d, RTT %.3f sec, loss %g / %g, link %.3f Mbps\n", senderWindow, rtt, 
-        loss_prob_fwd, loss_prob_rev, bottleneck_link_speed);
-
     SenderSocket ss; // instance of your class
-    DWORD status;
+    int status;
+    start_t = clock();
     if ((status = ss.Open(targetHost, MAGIC_PORT, senderWindow, &lp)) != STATUS_OK) {
 
     }
-        // error handling: print status and quit
+    end_t = clock();
+    printf("Main:\tconnected to %s in %.3f sec, pkt size bytes\n", targetHost, (float)(end_t-start_t)/1000);
+
     //char* charBuf = (char*)dwordBuf; // this buffer goes into socket
     //UINT64 byteBufferSize = dwordBufSize << 2; // convert to bytes
     //UINT64 off = 0; // current position in buffer

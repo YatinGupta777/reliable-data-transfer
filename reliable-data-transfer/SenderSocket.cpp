@@ -1,7 +1,12 @@
 #include "pch.h"
 #include "SenderSocket.h" 
 
-DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
+SenderSocket::SenderSocket() {
+    start_time = clock();
+    current_time = clock();
+}
+
+int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
 {
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
@@ -57,6 +62,9 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
     ssh->lp.bufferSize = senderWindow + 3;
 
     for (int i = 0; i < 3; i++) {
+        current_time = clock() - start_time;
+        printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO) to \n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS);
+
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
             printf("socket generated error %d\n", WSAGetLastError());
@@ -105,12 +113,14 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
             if (rh->flags.SYN == 1 && rh->flags.ACK == 1) {
-                printf("%d\n", rh->recvWnd);
+                current_time = clock() - start_time;
+                printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to \n", (float)(current_time / (float)1000), rh->recvWnd);
+                return STATUS_OK;
             }
         }
     }
 }
-DWORD SenderSocket::Close(int senderWindow, LinkProperties* lp)
+int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 {
     SenderSynHeader* ssh = new SenderSynHeader();
 
@@ -124,6 +134,9 @@ DWORD SenderSocket::Close(int senderWindow, LinkProperties* lp)
     ssh->lp.bufferSize = senderWindow + 3;
 
     for (int i = 0; i < 3; i++) {
+        current_time = clock() - start_time;
+        printf("[%.3f] --> FIN 0 (attempt %d of %d, RTO) \n", (float)(current_time / (float)1000), i + 1, MAX_ATTEMPTS);
+
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
             printf("socket generated error %d\n", WSAGetLastError());
@@ -172,7 +185,9 @@ DWORD SenderSocket::Close(int senderWindow, LinkProperties* lp)
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
             if (rh->flags.FIN == 1 && rh->flags.ACK == 1) {
-                printf("FIN %d\n", rh->recvWnd);
+                current_time = clock() - start_time;
+                printf("[%.3f] <-- FIN-ACK 0 window %d\n", (float)(current_time / (float)1000), rh->recvWnd);
+                return STATUS_OK;
             }
         }
     }
