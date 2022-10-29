@@ -5,6 +5,7 @@ SenderSocket::SenderSocket() {
     start_time = clock();
     current_time = clock();
     syn_start_time = clock();
+    syn_end_time = clock();
     connection_open = false;
     rto = 1;
 }
@@ -80,7 +81,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
         FD_ZERO(&fd); // clear the set
         FD_SET(sock, &fd); // add your socket to the set
         timeval tp;
-        tp.tv_sec = 10;
+        tp.tv_sec = 1;
         tp.tv_usec = 0;
 
         struct sockaddr_in res_server;
@@ -157,7 +158,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
         FD_ZERO(&fd); // clear the set
         FD_SET(sock, &fd); // add your socket to the set
         timeval tp;
-        tp.tv_sec = 10;
+        tp.tv_sec = 1;
         tp.tv_usec = 0;
 
         struct sockaddr_in res_server;

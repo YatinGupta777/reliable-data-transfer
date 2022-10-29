@@ -66,7 +66,8 @@ int main(int argc, char** argv)
     SenderSocket ss; // instance of your class
     int status;
     if ((status = ss.Open(targetHost, MAGIC_PORT, senderWindow, &lp)) != STATUS_OK) {
-
+        printf("Main : connect failed with status %d", status);
+        return 0;
     }
     printf("Main:\tconnected to %s in %.3f sec, pkt size %d bytes\n", targetHost, (float)(ss.syn_end_time - ss.syn_start_time)/ (float)1000, MAX_PKT_SIZE);
     start_t = clock();
@@ -86,6 +87,8 @@ int main(int argc, char** argv)
     }
     end_t = clock();
     if ((status = ss.Close(senderWindow, &lp)) != STATUS_OK){
+        printf("Main : connect failed with status %d", status);
+        return 0;
     }
     printf("Main:\ttransfer finished in %.3f sec\n", (float)(end_t - start_t) / (float)1000);
         // error handing: print status and quit 
