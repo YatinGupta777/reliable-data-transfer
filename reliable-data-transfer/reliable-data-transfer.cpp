@@ -65,13 +65,11 @@ int main(int argc, char** argv)
 
     SenderSocket ss; // instance of your class
     int status;
-    start_t = clock();
     if ((status = ss.Open(targetHost, MAGIC_PORT, senderWindow, &lp)) != STATUS_OK) {
 
     }
-    end_t = clock();
+    printf("Main:\tconnected to %s in %.3f sec, pkt size %d bytes\n", targetHost, (float)(ss.syn_end_time - ss.syn_start_time)/ (float)1000, MAX_PKT_SIZE);
     start_t = clock();
-    printf("Main:\tconnected to %s in %.3f sec, pkt size bytes\n", targetHost, (float)(end_t-start_t)/1000);
 
     char* charbuf = (char*)dwordBuf; // this buffer goes into socket
     UINT64 bytebuffersize = dwordBufSize << 2; // convert to bytes

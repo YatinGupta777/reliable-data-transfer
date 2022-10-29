@@ -4,6 +4,7 @@
 SenderSocket::SenderSocket() {
     start_time = clock();
     current_time = clock();
+    syn_start_time = clock();
     rto = 1;
 }
 
@@ -61,10 +62,10 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
     ssh->lp = *lp;
     ssh->lp.bufferSize = senderWindow + 3;
-
+    syn_start_time = clock() - start_time;
     for (int i = 0; i < 3; i++) {
         current_time = clock() - start_time;
-        printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO %.3f) to \n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS, rto);
+        printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO %.3f) to %s\n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS, rto, inet_ntoa(server.sin_addr));
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
@@ -116,6 +117,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
             if (rh->flags.SYN == 1 && rh->flags.ACK == 1) {
                 clock_t temp = current_time;
                 current_time = clock() - start_time;
+                syn_end_time = current_time;
                 rto = ((float)((current_time) -temp) * 3) / 1000;
                 printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to %.3f\n", (float)(current_time / (float)1000), rh->recvWnd, rto);
                 return STATUS_OK;

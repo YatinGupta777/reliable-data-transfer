@@ -59,8 +59,8 @@ class SenderSocket {
     SOCKET sock;
     float rto;
     struct sockaddr_in server;
-    clock_t start_time, current_time;
 public:
+    clock_t start_time, current_time, syn_start_time, syn_end_time;
     SenderSocket();
     int Open(char* host, int port, int senderWindow, LinkProperties* lp);
     int Send();
