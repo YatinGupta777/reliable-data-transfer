@@ -59,6 +59,7 @@ class SenderSocket {
     SOCKET sock;
     float rto;
     struct sockaddr_in server;
+    bool connection_open;
 public:
     clock_t start_time, current_time, syn_start_time, syn_end_time;
     SenderSocket();

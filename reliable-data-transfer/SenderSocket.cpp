@@ -5,16 +5,19 @@ SenderSocket::SenderSocket() {
     start_time = clock();
     current_time = clock();
     syn_start_time = clock();
+    connection_open = false;
     rto = 1;
 }
 
 int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
 {
+    if (connection_open) return ALREADY_CONNECTED;
+
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
     {
         printf("socket() generated error %d\n", WSAGetLastError());
-        return 0;
+        return -1;
     }
 
     struct sockaddr_in local;
@@ -25,7 +28,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
     if (bind(sock, (struct sockaddr*)&local, sizeof(local)) == SOCKET_ERROR)
     {
         printf("bind() generated error %d\n", WSAGetLastError());
-        return 0;
+        return -1;
     }
 
     struct hostent* remote;
@@ -41,7 +44,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
         if ((remote = gethostbyname(host)) == NULL)
         {
             printf("failed with %d\n", WSAGetLastError());
-            return 0;
+            return INVALID_NAME;
         }
         else { // take the first IP address and copy into sin_addr
             memcpy((char*)&(server.sin_addr), remote->h_addr, remote->h_length);
@@ -63,14 +66,14 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
     ssh->lp = *lp;
     ssh->lp.bufferSize = senderWindow + 3;
     syn_start_time = clock() - start_time;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < MAX_SYN_ATTEMPTS; i++) {
         current_time = clock() - start_time;
         printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO %.3f) to %s\n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS, rto, inet_ntoa(server.sin_addr));
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
-            printf("socket generated error %d\n", WSAGetLastError());
-            return 0;
+            printf("failed sendto with %d\n", WSAGetLastError());
+            return FAILED_SEND;
         };
 
         fd_set fd;
@@ -87,29 +90,23 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
         int available = select(0, &fd, NULL, NULL, &tp);
 
         if (available == 0) {
-            printf("timeout\n");
             continue;
         }
 
         if (available == SOCKET_ERROR)
         {
-            printf("socket generated error %d\n", WSAGetLastError());
-            return 0;
+            printf("failed recvfrom with %d\n", WSAGetLastError());
+            return FAILED_RECV;
         };
 
         if (available > 0)
         {
             int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
 
-            if (res_server.sin_addr.S_un.S_addr != server.sin_addr.S_un.S_addr || res_server.sin_port != server.sin_port) {
-                printf("++ invalid reply: wrong server replied\n");
-                return 0;
-            }
-
             if (bytes_received == SOCKET_ERROR)
             {
-                printf("socket error %d\n", WSAGetLastError());
-                return 0;
+                printf("failed recvfrom with %d\n", WSAGetLastError());
+                return FAILED_RECV;
             };
 
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
@@ -120,11 +117,19 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                 syn_end_time = current_time;
                 rto = ((float)((current_time) -temp) * 3) / 1000;
                 printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to %.3f\n", (float)(current_time / (float)1000), rh->recvWnd, rto);
+                connection_open = true;
                 return STATUS_OK;
             }
         }
     }
+    return TIMEOUT;
 }
+int SenderSocket::Send()
+{
+    if (!connection_open) return NOT_CONNECTED;
+}
+
+
 int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 {
     SenderSynHeader* ssh = new SenderSynHeader();
@@ -144,8 +149,8 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
-            printf("socket generated error %d\n", WSAGetLastError());
-            return 0;
+            printf("failed sendto with %d\n", WSAGetLastError());
+            return FAILED_SEND;
         };
 
         fd_set fd;
@@ -162,29 +167,23 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
         int available = select(0, &fd, NULL, NULL, &tp);
 
         if (available == 0) {
-            printf("timeout\n");
             continue;
         }
 
         if (available == SOCKET_ERROR)
         {
-            printf("socket generated error %d\n", WSAGetLastError());
-            return 0;
+            printf("failed recvfrom with %d\n", WSAGetLastError());
+            return FAILED_RECV;
         };
 
         if (available > 0)
         {
             int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
 
-            if (res_server.sin_addr.S_un.S_addr != server.sin_addr.S_un.S_addr || res_server.sin_port != server.sin_port) {
-                printf("++ invalid reply: wrong server replied\n");
-                return 0;
-            }
-
             if (bytes_received == SOCKET_ERROR)
             {
-                printf("socket error %d\n", WSAGetLastError());
-                return 0;
+                printf("failed recvfrom with %d\n", WSAGetLastError());
+                return FAILED_RECV;
             };
 
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
@@ -192,8 +191,10 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
             if (rh->flags.FIN == 1 && rh->flags.ACK == 1) {
                 current_time = clock() - start_time;
                 printf("[%.3f] <-- FIN-ACK 0 window %d\n", (float)(current_time / (float)1000), rh->recvWnd);
+                connection_open = false;
                 return STATUS_OK;
             }
         }
     }
+    return TIMEOUT;
 }
