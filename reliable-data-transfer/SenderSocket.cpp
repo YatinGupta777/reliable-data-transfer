@@ -24,9 +24,9 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
     struct sockaddr_in server;
     struct hostent* remote;
 
-    memset(&remote, 0, sizeof(remote));
+    memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
-    server.sin_port = htons(53); // DNS port on serve
+    server.sin_port = htons(port); 
 
     DWORD IP = inet_addr(host);
     if (IP == INADDR_NONE)
@@ -62,59 +62,61 @@ DWORD SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties*
    
     ssh->lp.bufferSize = senderWindow + 3;
 
-    if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
-    {
-        printf("socket generated error %d\n", WSAGetLastError());
-        return 0;
-    };
-
-    fd_set fd;
-    FD_ZERO(&fd); // clear the set
-    FD_SET(sock, &fd); // add your socket to the set
-    timeval tp;
-    tp.tv_sec = 10;
-    tp.tv_usec = 0;
-
-    struct sockaddr_in res_server;
-    int res_server_size = sizeof(res_server);
-    char* res_buf = new char[sizeof(ReceiverHeader)];
-
-    int available = select(0, &fd, NULL, NULL, &tp);
-
-    if (available == 0) {
-        return 0;
-    }
-
-    if (available == SOCKET_ERROR)
-    {
-        printf("socket generated error %d\n", WSAGetLastError());
-        return 0;
-    };
-
-    if (available > 0)
-    {
-        int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
-
-        printf("%d AA %d \n ", bytes_received, sizeof(ReceiverHeader));
-
-        printf("AAA %d", bytes_received);
-
-        if (res_server.sin_addr.S_un.S_addr != server.sin_addr.S_un.S_addr || res_server.sin_port != server.sin_port) {
-            printf("++ invalid reply: wrong server replied\n");
-            return 0;
-        }
-
-        if (bytes_received == SOCKET_ERROR)
+    for (int i = 0; i < 3; i++) {
+        if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
-            printf("socket error %d\n", WSAGetLastError());
+            printf("socket generated error %d\n", WSAGetLastError());
             return 0;
         };
 
-        ReceiverHeader* rh = (ReceiverHeader*)res_buf;
+        fd_set fd;
+        FD_ZERO(&fd); // clear the set
+        FD_SET(sock, &fd); // add your socket to the set
+        timeval tp;
+        tp.tv_sec = 10;
+        tp.tv_usec = 0;
 
-        if (rh->flags.SYN == 1 && rh->flags.ACK == 1) {
-            printf("YO");
+        struct sockaddr_in res_server;
+        int res_server_size = sizeof(res_server);
+        char* res_buf = new char[sizeof(ReceiverHeader)];
+
+        int available = select(0, &fd, NULL, NULL, &tp);
+
+        if (available == 0) {
+            printf("timeout\n");
+            return 0;
+        }
+
+        if (available == SOCKET_ERROR)
+        {
+            printf("socket generated error %d\n", WSAGetLastError());
+            return 0;
+        };
+
+        if (available > 0)
+        {
+            int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+
+            printf("%d AA %d \n ", bytes_received, sizeof(ReceiverHeader));
+
+            printf("AAA %d", bytes_received);
+
+            if (res_server.sin_addr.S_un.S_addr != server.sin_addr.S_un.S_addr || res_server.sin_port != server.sin_port) {
+                printf("++ invalid reply: wrong server replied\n");
+                return 0;
+            }
+
+            if (bytes_received == SOCKET_ERROR)
+            {
+                printf("socket error %d\n", WSAGetLastError());
+                return 0;
+            };
+
+            ReceiverHeader* rh = (ReceiverHeader*)res_buf;
+
+            if (rh->flags.SYN == 1 && rh->flags.ACK == 1) {
+                printf("YO");
+            }
         }
     }
-
 }
