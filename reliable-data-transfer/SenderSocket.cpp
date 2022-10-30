@@ -138,6 +138,8 @@ int SenderSocket::Send()
 
 int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 {
+    if (!connection_open) return NOT_CONNECTED;
+
     SenderSynHeader* ssh = new SenderSynHeader();
 
     ssh->sdh.flags.reserved = 0;
