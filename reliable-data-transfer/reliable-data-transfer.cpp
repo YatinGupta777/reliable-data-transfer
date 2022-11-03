@@ -77,13 +77,13 @@ int main(int argc, char** argv)
     UINT64 off = 0; // current position in buffer
     while (off < bytebuffersize)
     {
-        // decide the size of next chunk
-        //int bytes = min(bytebuffersize - off, max_pkt_size - sizeof(senderdataheader));
-        //// send chunk into socket
-        //if ((status = ss.send(charbuf + off, bytes)) != status_ok)
-        //    // error handing: print status and quit
-        //    off += bytes;
-        off += 10000;
+        //decide the size of next chunk
+        int bytes = min(bytebuffersize - off, MAX_PKT_SIZE - sizeof(SenderDataHeader));
+        // send chunk into socket
+        if ((status = ss.Send(charbuf + off, bytes)) != STATUS_OK) {
+
+        }
+        off += bytes;
     }
     end_t = clock();
     if ((status = ss.Close(senderWindow, &lp)) != STATUS_OK){

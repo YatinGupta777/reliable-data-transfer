@@ -10,6 +10,8 @@ SenderSocket::SenderSocket() {
     fin_end_time = clock();
     connection_open = false;
     rto = 1;
+    current_seq = 0;
+    current_ack = 0;
 }
 
 int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
@@ -130,9 +132,65 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
     }
     return TIMEOUT;
 }
-int SenderSocket::Send()
+int SenderSocket::Send(char*buf, int bytes)
 {
     if (!connection_open) return NOT_CONNECTED;
+    DataPacket* data_packet = new DataPacket();
+
+    data_packet->sdh.seq = current_seq;
+
+    memcpy(data_packet->data, buf, bytes);
+
+    for (int i = 0; i < MAX_ATTEMPTS; i++) {
+        current_time = clock() - start_time;
+        if (sendto(sock, (char*)data_packet, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
+        {
+            printf("failed sendto with %d\n", WSAGetLastError());
+            return FAILED_SEND;
+        };
+
+        fd_set fd;
+        FD_ZERO(&fd); // clear the set
+        FD_SET(sock, &fd); // add your socket to the set
+        timeval tp;
+        tp.tv_sec = 1;
+        tp.tv_usec = 0;
+
+        struct sockaddr_in res_server;
+        int res_server_size = sizeof(res_server);
+        char* res_buf = new char[sizeof(ReceiverHeader)];
+
+        int available = select(0, &fd, NULL, NULL, &tp);
+
+        if (available == 0) {
+            continue;
+        }
+
+        if (available == SOCKET_ERROR)
+        {
+            printf("failed recvfrom with %d\n", WSAGetLastError());
+            return FAILED_RECV;
+        };
+
+        if (available > 0)
+        {
+            int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+
+            if (bytes_received == SOCKET_ERROR)
+            {
+                printf("failed recvfrom with %d\n", WSAGetLastError());
+                return FAILED_RECV;
+            };
+
+            ReceiverHeader* rh = (ReceiverHeader*)res_buf;
+
+            printf("W %d ACK %d\n", rh->recvWnd,rh->ackSeq);
+            current_ack = rh->ackSeq;
+            current_seq++;
+            return STATUS_OK;
+        }
+    }
+    return TIMEOUT;
 }
 
 
@@ -146,7 +204,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
     ssh->sdh.flags.SYN = 0;
     ssh->sdh.flags.FIN = 1;
     ssh->sdh.flags.ACK = 0;
-    ssh->sdh.seq = 0;
+    ssh->sdh.seq = current_ack;
 
     ssh->lp = *lp;
     ssh->lp.bufferSize = senderWindow + MAX_ATTEMPTS;
