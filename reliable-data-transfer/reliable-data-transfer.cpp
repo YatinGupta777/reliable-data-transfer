@@ -11,6 +11,7 @@
 
 #include "pch.h"
 #include "SenderSocket.h" 
+#include "Checksum.h" 
 #pragma comment(lib, "ws2_32.lib")
 
 int main(int argc, char** argv)
@@ -72,25 +73,29 @@ int main(int argc, char** argv)
     printf("Main:\tconnected to %s in %.3f sec, pkt size %d bytes\n", targetHost, (float)(ss.syn_end_time - ss.syn_start_time)/ (float)1000, MAX_PKT_SIZE);
     start_t = clock();
 
-    char* charbuf = (char*)dwordBuf; // this buffer goes into socket
-    UINT64 bytebuffersize = dwordBufSize << 2; // convert to bytes
+    char* charBuf = (char*)dwordBuf; // this buffer goes into socket
+    UINT64 byteBufferSize = dwordBufSize << 2; // convert to bytes
     UINT64 off = 0; // current position in buffer
-    while (off < bytebuffersize)
+    while (off < byteBufferSize)
     {
         //decide the size of next chunk
-        int bytes = min(bytebuffersize - off, MAX_PKT_SIZE - sizeof(SenderDataHeader));
+        int bytes = min(byteBufferSize - off, MAX_PKT_SIZE - sizeof(SenderDataHeader));
         // send chunk into socket
-        if ((status = ss.Send(charbuf + off, bytes)) != STATUS_OK) {
+        if ((status = ss.Send(charBuf + off, bytes)) != STATUS_OK) {
 
         }
         off += bytes;
     }
     end_t = clock();
+
+    Checksum cs;
+    DWORD check = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
+
     if ((status = ss.Close(senderWindow, &lp)) != STATUS_OK){
         printf("Main : connect failed with status %d", status);
         return 0;
     }
-    printf("Main:\ttransfer finished in %.3f sec\n", (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000);
+    printf("Checksum sent %x Main:\ttransfer finished in %.3f sec\n", check, (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000);
         // error handing: print status and quit 
 }
 

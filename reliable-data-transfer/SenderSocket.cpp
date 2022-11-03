@@ -258,7 +258,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
             if (rh->flags.FIN == 1 && rh->flags.ACK == 1) {
                 current_time = clock() - start_time;
                 fin_end_time = current_time;
-                printf("[%.3f] <-- FIN-ACK 0 window %d\n", (float)(current_time / (float)1000), rh->recvWnd);
+                printf("[%.3f] <-- FIN-ACK 0 window %x\n", (float)(current_time / (float)1000), rh->recvWnd);
                 connection_open = false;
                 return STATUS_OK;
             }
