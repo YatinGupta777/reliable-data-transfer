@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     UINT64 byteBufferSize = dwordBufSize << 2; // convert to bytes
 
     Checksum cs;
-    DWORD check = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
+    DWORD sent_checksum = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
 
     UINT64 off = 0; // current position in buffer
     while (off < byteBufferSize)
@@ -96,7 +96,13 @@ int main(int argc, char** argv)
         printf("Main : connect failed with status %d", status);
         return 0;
     }
-    printf("Checksum sent %x Main:\ttransfer finished in %.3f sec\n", check, (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000);
+
+    if (ss.received_checksum != sent_checksum) {
+        printf("Receiver sent wrong checksum");
+        return 0;
+    }
+
+    printf("Main:\ttransfer finished in %.3f sec, Missing, checksum %x\n", (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000, ss.received_checksum);
         // error handing: print status and quit 
 }
 
