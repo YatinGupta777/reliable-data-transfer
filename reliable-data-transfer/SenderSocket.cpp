@@ -143,7 +143,7 @@ int SenderSocket::Send(char*buf, int bytes)
 
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
         current_time = clock() - start_time;
-        if (sendto(sock, (char*)data_packet, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
+        if (sendto(sock, (char*)data_packet, sizeof(SenderDataHeader) + bytes, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
             printf("failed sendto with %d\n", WSAGetLastError());
             return FAILED_SEND;

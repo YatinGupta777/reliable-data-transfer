@@ -75,6 +75,10 @@ int main(int argc, char** argv)
 
     char* charBuf = (char*)dwordBuf; // this buffer goes into socket
     UINT64 byteBufferSize = dwordBufSize << 2; // convert to bytes
+
+    Checksum cs;
+    DWORD check = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
+
     UINT64 off = 0; // current position in buffer
     while (off < byteBufferSize)
     {
@@ -87,9 +91,6 @@ int main(int argc, char** argv)
         off += bytes;
     }
     end_t = clock();
-
-    Checksum cs;
-    DWORD check = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
 
     if ((status = ss.Close(senderWindow, &lp)) != STATUS_OK){
         printf("Main : connect failed with status %d", status);
