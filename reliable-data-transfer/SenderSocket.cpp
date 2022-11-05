@@ -78,6 +78,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
     syn_start_time = clock() - start_time;
     for (int i = 0; i < MAX_SYN_ATTEMPTS; i++) {
+        float packet_send_time = clock();
         current_time = clock() - start_time;
         printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO %.3f) to %s\n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS, rto, inet_ntoa(server.sin_addr));
 
@@ -91,8 +92,8 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
         FD_ZERO(&fd); // clear the set
         FD_SET(sock, &fd); // add your socket to the set
         timeval tp;
-        tp.tv_sec = 1;
-        tp.tv_usec = 0;
+        tp.tv_sec = rto;
+        tp.tv_usec = (rto - floor(rto)) * 1000000;
 
         struct sockaddr_in res_server;
         int res_server_size = sizeof(res_server);
@@ -128,9 +129,18 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                 clock_t temp = current_time;
                 current_time = clock() - start_time;
                 syn_end_time = current_time;
-                //rto = ((float)((current_time) -temp) * 3) / 1000;
+                rto = ((float)((current_time) -temp) * 3) / 1000;
                 printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to %.3f\n", (float)(current_time / (float)1000), rh->recvWnd, rto);
                 connection_open = true;
+
+                if (i == 0)
+                {
+                    float packet_time = clock() - packet_send_time;
+                    estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time)) / 1000;
+                    dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt))) / 1000;
+                    rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
+                }
+
                 return STATUS_OK;
             }
         }
@@ -159,8 +169,8 @@ int SenderSocket::Send(char*buf, int bytes)
         FD_ZERO(&fd); // clear the set
         FD_SET(sock, &fd); // add your socket to the set
         timeval tp;
-        tp.tv_sec = 1;
-        tp.tv_usec = 0;
+        tp.tv_sec = rto;
+        tp.tv_usec = (rto - floor(rto))*1000000;
 
         struct sockaddr_in res_server;
         int res_server_size = sizeof(res_server);
@@ -190,16 +200,16 @@ int SenderSocket::Send(char*buf, int bytes)
 
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
-            printf("W %d ACK %d\n", rh->recvWnd,rh->ackSeq);
+            printf("W %d ACK %d EStimated %.3f RTO %.3f\n", rh->recvWnd,rh->ackSeq, estimated_rtt, rto);
             current_ack = rh->ackSeq;
             current_seq++;
 
             if (i == 0)
             {
-                 float packet_time = clock() - packet_send_time;
-                 estimated_rtt = ((1 - ALPHA) * estimated_rtt + ALPHA * packet_time) / 1000;
-                 dev_rtt = ((1 - BETA) * dev_rtt + BETA * abs(packet_time - estimated_rtt)) /1000;
-                 rto = (estimated_rtt + 4 * max(dev_rtt, 0.01));
+                 float packet_time = (clock() - packet_send_time) / 1000;
+                 estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
+                 dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
+                 rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
             }
 
             return STATUS_OK;
@@ -239,8 +249,8 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
         FD_ZERO(&fd); // clear the set
         FD_SET(sock, &fd); // add your socket to the set
         timeval tp;
-        tp.tv_sec = 1;
-        tp.tv_usec = 0;
+        tp.tv_sec = rto;
+        tp.tv_usec = (rto - floor(rto)) * 1000000;
 
         struct sockaddr_in res_server;
         int res_server_size = sizeof(res_server);
