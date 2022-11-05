@@ -81,7 +81,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
     for (int i = 0; i < MAX_SYN_ATTEMPTS; i++) {
         float packet_send_time = clock();
         current_time = clock() - start_time;
-        printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO %.3f) to %s\n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS, rto, inet_ntoa(server.sin_addr));
+        //printf("[%.3f] --> SYN 0 (attempt %d of %d, RTO %.3f) to %s\n", (float)(current_time / (float)1000), i+1, MAX_SYN_ATTEMPTS, rto, inet_ntoa(server.sin_addr));
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
@@ -131,7 +131,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                 current_time = clock() - start_time;
                 syn_end_time = current_time;
                 rto = ((float)((current_time) -temp) * 3) / 1000;
-                printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to %.3f\n", (float)(current_time / (float)1000), rh->recvWnd, rto);
+                //printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to %.3f\n", (float)(current_time / (float)1000), rh->recvWnd, rto);
                 connection_open = true;
 
                 if (i == 0)
@@ -238,7 +238,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
     fin_start_time = clock() - start_time;
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
         current_time = clock() - start_time;
-        printf("[%.3f] --> FIN 0 (attempt %d of %d, RTO %.3f) \n", (float)(current_time / (float)1000), i + 1, MAX_ATTEMPTS, rto);
+        //printf("[%.3f] --> FIN 0 (attempt %d of %d, RTO %.3f) \n", (float)(current_time / (float)1000), i + 1, MAX_ATTEMPTS, rto);
 
         if (sendto(sock, (char*)ssh, sizeof(SenderSynHeader), 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
@@ -285,7 +285,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
                 current_time = clock() - start_time;
                 fin_end_time = current_time;
                 received_checksum = rh->recvWnd;
-                printf("[%.3f] <-- FIN-ACK 0 window\n", (float)(current_time / (float)1000));
+                printf("[%.3f] <-- FIN-ACK 0 window %X\n", (float)(current_time / (float)1000), rh->recvWnd);
                 connection_open = false;
                 return STATUS_OK;
             }
