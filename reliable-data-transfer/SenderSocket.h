@@ -64,11 +64,11 @@ public:
 #pragma pack(pop)
 
 class SenderSocket {
+public:
     SOCKET sock;
     struct sockaddr_in server;
     bool connection_open;
     int current_seq, current_ack;
-public:
     HANDLE	eventQuit;
     DWORD received_checksum;
     float rto, estimated_rtt, dev_rtt;

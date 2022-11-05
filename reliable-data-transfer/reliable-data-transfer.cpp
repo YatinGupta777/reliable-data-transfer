@@ -19,7 +19,7 @@ UINT stats_thread(LPVOID pParam)
     SenderSocket* ss = ((SenderSocket*)pParam);
     while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
     {
-        printf("[%3d]\n", (clock() - ss->start_time)/1000);
+        printf("[%3d] B %d N %d T F W 1 S RTT %.3f\n", (clock() - ss->start_time)/1000, ss->current_seq, ss->current_seq+1,ss->estimated_rtt);
     }
 
     return 0;
