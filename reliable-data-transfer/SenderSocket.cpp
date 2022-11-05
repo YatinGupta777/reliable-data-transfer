@@ -12,6 +12,8 @@ SenderSocket::SenderSocket() {
     rto = 1;
     current_seq = 0;
     current_ack = 0;
+    estimated_rtt = 0;
+    dev_rtt = 0;
 }
 
 int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
@@ -71,6 +73,9 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 
     ssh->lp = *lp;
     ssh->lp.bufferSize = senderWindow + MAX_SYN_ATTEMPTS;
+
+    rto = max(1, 2 * ssh->lp.RTT);
+
     syn_start_time = clock() - start_time;
     for (int i = 0; i < MAX_SYN_ATTEMPTS; i++) {
         current_time = clock() - start_time;
@@ -123,7 +128,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                 clock_t temp = current_time;
                 current_time = clock() - start_time;
                 syn_end_time = current_time;
-                rto = ((float)((current_time) -temp) * 3) / 1000;
+                //rto = ((float)((current_time) -temp) * 3) / 1000;
                 printf("[%.3f] <-- SYN-ACK 0 window %d; setting initial RTO to %.3f\n", (float)(current_time / (float)1000), rh->recvWnd, rto);
                 connection_open = true;
                 return STATUS_OK;
@@ -142,6 +147,7 @@ int SenderSocket::Send(char*buf, int bytes)
     memcpy(data_packet->data, buf, bytes);
 
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
+        float packet_send_time = clock();
         current_time = clock() - start_time;
         if (sendto(sock, (char*)data_packet, sizeof(SenderDataHeader) + bytes, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
@@ -187,6 +193,15 @@ int SenderSocket::Send(char*buf, int bytes)
             printf("W %d ACK %d\n", rh->recvWnd,rh->ackSeq);
             current_ack = rh->ackSeq;
             current_seq++;
+
+            if (i == 0)
+            {
+                 float packet_time = clock() - packet_send_time;
+                 estimated_rtt = ((1 - ALPHA) * estimated_rtt + ALPHA * packet_time) / 1000;
+                 dev_rtt = ((1 - BETA) * dev_rtt + BETA * abs(packet_time - estimated_rtt)) /1000;
+                 rto = (estimated_rtt + 4 * max(dev_rtt, 0.01));
+            }
+
             return STATUS_OK;
         }
     }

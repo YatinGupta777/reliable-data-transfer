@@ -103,7 +103,7 @@ int main(int argc, char** argv)
     }
 
     printf("Main:\ttransfer finished in %.3f sec, Missing, checksum %x\n", (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000, ss.received_checksum);
-        // error handing: print status and quit 
+    printf("Main:\testRTT %.3f, ideal rate Kbps", ss.estimated_rtt);
 }
 
 //C:\Users\yatingupta\source\repos\YatinGupta777\reliable-data-transfer\x64\Debug
