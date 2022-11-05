@@ -200,19 +200,21 @@ int SenderSocket::Send(char*buf, int bytes)
             };
 
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
-
-            //printf("W %d ACK %d EStimated %.3f RTO %.3f\n", rh->recvWnd,rh->ackSeq, estimated_rtt, rto);
-            current_ack = rh->ackSeq;
-            current_seq++;
-
-            if (i == 0)
-            {
-                 float packet_time = (clock() - packet_send_time) / 1000;
-                 estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
-                 dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
-                 rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
+            
+            if (rh->ackSeq == current_seq + 1) {
+                current_ack = rh->ackSeq;
+                current_seq++;
+                bytes_acked += MAX_PKT_SIZE;
+                if (i == 0)
+                {
+                    float packet_time = (clock() - packet_send_time) / 1000;
+                    estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
+                    dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
+                    rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
+                }
             }
 
+            //printf("W %d ACK %d EStimated %.3f RTO %.3f\n", rh->recvWnd,rh->ackSeq, estimated_rtt, rto);
             return STATUS_OK;
         }
     }
@@ -285,7 +287,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
                 current_time = clock() - start_time;
                 fin_end_time = current_time;
                 received_checksum = rh->recvWnd;
-                printf("[%.3f] <-- FIN-ACK 0 window %X\n", (float)(current_time / (float)1000), rh->recvWnd);
+                printf("[%.3f] <-- FIN-ACK %d window %X\n", (float)(current_time / (float)1000), rh->ackSeq, rh->recvWnd);
                 connection_open = false;
                 return STATUS_OK;
             }

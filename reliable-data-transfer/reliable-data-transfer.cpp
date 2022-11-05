@@ -17,9 +17,12 @@
 UINT stats_thread(LPVOID pParam)
 {
     SenderSocket* ss = ((SenderSocket*)pParam);
+    int last_base = 0;
     while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
     {
-        printf("[%3d] B %4d N %4d T F W 1 S RTT %.3f\n", (clock() - ss->start_time)/1000, ss->current_seq, ss->current_seq+1,ss->estimated_rtt);
+        float speed = ((ss->current_ack - last_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / 1000000.0;
+        printf("[%3d] B %4d (%.1f MB) N %4d T F W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time)/1000, ss->current_seq, ((float)ss->bytes_acked)/1000000.0, ss->current_seq+1, speed, ss->estimated_rtt);
+        last_base = ss->current_ack;
     }
 
     return 0;
