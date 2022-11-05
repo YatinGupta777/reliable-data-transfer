@@ -227,6 +227,9 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 {
     if (!connection_open) return NOT_CONNECTED;
 
+
+    end_data_time = clock();
+
     SenderSynHeader* ssh = new SenderSynHeader();
 
     ssh->sdh.flags.reserved = 0;

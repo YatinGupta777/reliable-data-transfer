@@ -96,13 +96,15 @@ int main(int argc, char** argv)
     HANDLE stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, &ss, 0, NULL);
 
     UINT64 off = 0; // current position in buffer
+    ss.start_data_time = clock();
     while (off < byteBufferSize)
     {
         //decide the size of next chunk
         int bytes = min(byteBufferSize - off, MAX_PKT_SIZE - sizeof(SenderDataHeader));
         // send chunk into socket
         if ((status = ss.Send(charBuf + off, bytes)) != STATUS_OK) {
-
+            printf("Main : connect failed with status %d", status);
+            return 0;
         }
         off += bytes;
     }
@@ -120,7 +122,7 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    printf("Main:\ttransfer finished in %.3f sec, Missing, checksum %X\n", (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000, ss.received_checksum);
+    printf("Main:\ttransfer finished in %.3f sec, Missing, checksum %X\n", (ss.end_data_time - ss.start_data_time) / 1000.0, ss.received_checksum);
     printf("Main:\testRTT %.3f, ideal rate %.2f Kbps", ss.estimated_rtt, 1/ss.estimated_rtt);
 }
 

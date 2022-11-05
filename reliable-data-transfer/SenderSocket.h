@@ -73,6 +73,7 @@ public:
     HANDLE	eventQuit;
     DWORD received_checksum;
     float rto, estimated_rtt, dev_rtt;
+    double start_data_time, end_data_time;
     clock_t start_time, current_time, syn_start_time, syn_end_time, fin_start_time, fin_end_time;
     SenderSocket();
     int Open(char* host, int port, int senderWindow, LinkProperties* lp);
