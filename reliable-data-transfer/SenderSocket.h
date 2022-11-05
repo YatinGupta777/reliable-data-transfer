@@ -68,7 +68,7 @@ public:
     SOCKET sock;
     struct sockaddr_in server;
     bool connection_open;
-    int current_seq, current_ack;
+    int current_seq, current_ack, timed_out_packets;
     long long int bytes_acked;
     HANDLE	eventQuit;
     DWORD received_checksum;

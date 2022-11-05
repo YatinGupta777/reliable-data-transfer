@@ -180,6 +180,7 @@ int SenderSocket::Send(char*buf, int bytes)
         int available = select(0, &fd, NULL, NULL, &tp);
 
         if (available == 0) {
+            timed_out_packets++;
             continue;
         }
 

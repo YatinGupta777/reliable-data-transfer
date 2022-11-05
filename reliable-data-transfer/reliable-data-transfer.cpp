@@ -21,7 +21,7 @@ UINT stats_thread(LPVOID pParam)
     while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
     {
         float speed = ((ss->current_ack - last_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / 1000000.0;
-        printf("[%3d] B %4d (%.1f MB) N %4d T F W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time)/1000, ss->current_seq, ((float)ss->bytes_acked)/1000000.0, ss->current_seq+1, speed, ss->estimated_rtt);
+        printf("[%3d] B %4d (%.1f MB) N %4d T %d F 0 W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time)/1000, ss->current_seq, ((float)ss->bytes_acked)/1000000.0, ss->current_seq+1, ss->timed_out_packets, speed, ss->estimated_rtt);
         last_base = ss->current_ack;
     }
 
@@ -121,7 +121,7 @@ int main(int argc, char** argv)
     }
 
     printf("Main:\ttransfer finished in %.3f sec, Missing, checksum %X\n", (float)(ss.fin_start_time - ss.syn_end_time) / (float)1000, ss.received_checksum);
-    printf("Main:\testRTT %.3f, ideal rate Kbps", ss.estimated_rtt);
+    printf("Main:\testRTT %.3f, ideal rate %.2f Kbps", ss.estimated_rtt, 1/ss.estimated_rtt);
 }
 
 //C:\Users\yatingupta\source\repos\YatinGupta777\reliable-data-transfer\x64\Debug
