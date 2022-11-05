@@ -14,6 +14,17 @@
 #include "Checksum.h" 
 #pragma comment(lib, "ws2_32.lib")
 
+UINT stats_thread(LPVOID pParam)
+{
+    SenderSocket* ss = ((SenderSocket*)pParam);
+    while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
+    {
+        printf("[%3d]\n", (clock() - ss->start_time)/1000);
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc != 8)
@@ -79,6 +90,8 @@ int main(int argc, char** argv)
     Checksum cs;
     DWORD sent_checksum = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
 
+    HANDLE stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, &ss, 0, NULL);
+
     UINT64 off = 0; // current position in buffer
     while (off < byteBufferSize)
     {
@@ -96,6 +109,8 @@ int main(int argc, char** argv)
         printf("Main : connect failed with status %d", status);
         return 0;
     }
+
+    SetEvent(ss.eventQuit);
 
     if (ss.received_checksum != sent_checksum) {
         printf("Receiver sent wrong checksum");

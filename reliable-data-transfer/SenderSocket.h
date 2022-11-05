@@ -69,6 +69,7 @@ class SenderSocket {
     bool connection_open;
     int current_seq, current_ack;
 public:
+    HANDLE	eventQuit;
     DWORD received_checksum;
     float rto, estimated_rtt, dev_rtt;
     clock_t start_time, current_time, syn_start_time, syn_end_time, fin_start_time, fin_end_time;

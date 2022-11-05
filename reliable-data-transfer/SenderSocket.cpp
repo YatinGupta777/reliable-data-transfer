@@ -14,6 +14,7 @@ SenderSocket::SenderSocket() {
     current_ack = 0;
     estimated_rtt = 0;
     dev_rtt = 0;
+    eventQuit = CreateEvent(NULL, true, false, NULL);
 }
 
 int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
@@ -200,7 +201,7 @@ int SenderSocket::Send(char*buf, int bytes)
 
             ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
-            printf("W %d ACK %d EStimated %.3f RTO %.3f\n", rh->recvWnd,rh->ackSeq, estimated_rtt, rto);
+            //printf("W %d ACK %d EStimated %.3f RTO %.3f\n", rh->recvWnd,rh->ackSeq, estimated_rtt, rto);
             current_ack = rh->ackSeq;
             current_seq++;
 
