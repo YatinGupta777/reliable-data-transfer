@@ -17,12 +17,16 @@
 UINT stats_thread(LPVOID pParam)
 {
     SenderSocket* ss = ((SenderSocket*)pParam);
-    int last_base = 0;
+    int count = 0;
     while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
     {
-        float speed = ((ss->current_ack - last_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / 1000000.0;
+        double speed = ((ss->current_ack - ss->last_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / (2 * 1000000.0);
+        double current_speed_total = ss->average_rate * count;
+        count++;
+        ss->average_rate = (current_speed_total + speed) / (double)count;
+
         printf("[%3d] B %4d (%.1f MB) N %4d T %d F 0 W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time)/1000, ss->current_seq, ((float)ss->bytes_acked)/1000000.0, ss->current_seq+1, ss->timed_out_packets, speed, ss->estimated_rtt);
-        last_base = ss->current_ack;
+        ss->last_base = ss->current_ack;
     }
 
     return 0;
@@ -121,9 +125,7 @@ int main(int argc, char** argv)
         printf("Receiver sent wrong checksum");
         return 0;
     }
-
-    printf("Main:\ttransfer finished in %.3f sec, Missing, checksum %X\n", (ss.end_data_time - ss.start_data_time) / 1000.0, ss.received_checksum);
-    printf("Main:\testRTT %.3f, ideal rate %.2f Kbps", ss.estimated_rtt, 1/ss.estimated_rtt);
+    printf("Main:\ttransfer finished in %.3f sec, %.2f Kbps, checksum %X\n", (ss.end_data_time - ss.start_data_time) / 1000.0, ss.average_rate*1000, ss.received_checksum);
+    printf("Main:\testRTT %.3f, ideal rate %.2f Kbps", ss.estimated_rtt, (((MAX_PKT_SIZE-sizeof(SenderDataHeader)) * 8) / ss.estimated_rtt)/ 1000.0);
 }
-
 //C:\Users\yatingupta\source\repos\YatinGupta777\reliable-data-transfer\x64\Debug

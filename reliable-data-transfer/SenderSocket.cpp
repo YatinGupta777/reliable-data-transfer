@@ -14,6 +14,8 @@ SenderSocket::SenderSocket() {
     current_ack = 0;
     estimated_rtt = 0;
     dev_rtt = 0;
+    last_base = 0;
+    average_rate = 0;
     eventQuit = CreateEvent(NULL, true, false, NULL);
 }
 
@@ -291,6 +293,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
                 current_time = clock() - start_time;
                 fin_end_time = current_time;
                 received_checksum = rh->recvWnd;
+                current_ack = rh->ackSeq;
                 printf("[%.3f] <-- FIN-ACK %d window %X\n", (float)(current_time / (float)1000), rh->ackSeq, rh->recvWnd);
                 connection_open = false;
                 return STATUS_OK;
