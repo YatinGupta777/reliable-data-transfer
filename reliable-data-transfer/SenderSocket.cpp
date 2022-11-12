@@ -215,10 +215,8 @@ int SenderSocket::Send(char*buf, int bytes)
                     dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
                     rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
                 }
-            }
-
-            //printf("W %d ACK %d EStimated %.3f RTO %.3f\n", rh->recvWnd,rh->ackSeq, estimated_rtt, rto);
-            return STATUS_OK;
+                return STATUS_OK;
+            }           
         }
     }
     return TIMEOUT;

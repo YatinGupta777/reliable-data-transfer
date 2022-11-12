@@ -88,7 +88,7 @@ int main(int argc, char** argv)
         printf("Main : connect failed with status %d", status);
         return 0;
     }
-    printf("Main:\tconnected to %s in %.3f sec, pkt size %d bytes\n", targetHost, (float)(ss.syn_end_time - ss.syn_start_time)/ (float)1000, MAX_PKT_SIZE);
+    printf("Main:\tconnected to %s in %.3f sec, pkt %d bytes\n", targetHost, (float)(ss.syn_end_time - ss.syn_start_time)/ (float)1000, MAX_PKT_SIZE);
     start_t = clock();
 
     char* charBuf = (char*)dwordBuf; // this buffer goes into socket
