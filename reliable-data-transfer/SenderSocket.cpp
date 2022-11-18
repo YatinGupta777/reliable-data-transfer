@@ -16,10 +16,13 @@ SenderSocket::SenderSocket() {
     dev_rtt = 0;
     last_base = 0;
     average_rate = 0;
+    base = 0;
+    window_size = 0;
     eventQuit = CreateEvent(NULL, true, false, NULL);
 }
 
 SenderSocket:: ~SenderSocket() {
+    WSACleanup();
 }
 
 UINT SenderSocket::stats_thread(LPVOID pParam)
@@ -174,9 +177,14 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                     dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt))) / 1000;
                     rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
                 }
+
+                empty = CreateSemaphore(NULL, senderWindow, senderWindow, NULL);
+                full = CreateSemaphore(NULL, 0, senderWindow, NULL);
+
                 packets_buffer = new DataPacket[senderWindow];
                 stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, this, 0, NULL);
                 worker_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)worker_thread, this, 0, NULL);
+                window_size = senderWindow;
 
                 return STATUS_OK;
             }
@@ -187,16 +195,24 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 int SenderSocket::Send(char*buf, int bytes)
 {
     if (!connection_open) return NOT_CONNECTED;
+
+    HANDLE events[] = { empty };
+   // WaitForMultipleObjects(1, events, false, INFINITE);
+
     DataPacket* data_packet = new DataPacket();
-
     data_packet->sdh.seq = current_seq;
-
     memcpy(data_packet->data, buf, bytes);
+
+    int packet_position = current_seq % window_size;
+
+    memcpy(packets_buffer + packet_position, data_packet, sizeof(DataPacket));
+
+   // ReleaseSemaphore(full, 1, NULL);
 
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
         float packet_send_time = clock();
         current_time = clock() - start_time;
-        if (sendto(sock, (char*)data_packet, sizeof(SenderDataHeader) + bytes, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
+        if (sendto(sock, (char*)packets_buffer + (base % window_size), sizeof(SenderDataHeader) + bytes, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
         {
             printf("failed sendto with %d\n", WSAGetLastError());
             return FAILED_SEND;
