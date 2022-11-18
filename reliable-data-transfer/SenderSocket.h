@@ -76,7 +76,7 @@ public:
     double start_data_time, end_data_time, average_rate;
     clock_t start_time, current_time, syn_start_time, syn_end_time, fin_start_time, fin_end_time;
     HANDLE stats_thread_handle, worker_thread_handle;
-    HANDLE full, empty;
+    HANDLE full, empty, data_received_event;
     DataPacket* packets_buffer;
     int base, window_size;
 

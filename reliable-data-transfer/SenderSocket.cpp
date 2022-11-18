@@ -218,32 +218,31 @@ int SenderSocket::Send(char*buf, int bytes)
             return FAILED_SEND;
         };
 
-        fd_set fd;
-        FD_ZERO(&fd); // clear the set
-        FD_SET(sock, &fd); // add your socket to the set
-        timeval tp;
-        tp.tv_sec = rto;
-        tp.tv_usec = (rto - floor(rto))*1000000;
+        data_received_event = CreateEventA(0, FALSE, FALSE, 0);
+
+        int event_select = WSAEventSelect(sock, data_received_event, FD_READ | FD_CLOSE);
+        if (event_select == SOCKET_ERROR) {
+            printf("event failed with %d\n", WSAGetLastError());
+            return -1;
+        }
 
         struct sockaddr_in res_server;
         int res_server_size = sizeof(res_server);
         char* res_buf = new char[sizeof(ReceiverHeader)];
 
-        int available = select(0, &fd, NULL, NULL, &tp);
+        int available = WaitForSingleObject(data_received_event, rto * 1000);
 
-        if (available == 0) {
+        if (available == WAIT_TIMEOUT) {
             timed_out_packets++;
             continue;
         }
 
-        if (available == SOCKET_ERROR)
+        if (available == WAIT_FAILED)
         {
             printf("failed recvfrom with %d\n", WSAGetLastError());
             return FAILED_RECV;
         };
 
-        if (available > 0)
-        {
             int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
 
             if (bytes_received == SOCKET_ERROR)
@@ -267,7 +266,6 @@ int SenderSocket::Send(char*buf, int bytes)
                 }
                 return STATUS_OK;
             }           
-        }
     }
     return TIMEOUT;
 }
