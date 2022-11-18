@@ -75,8 +75,12 @@ public:
     float rto, estimated_rtt, dev_rtt;
     double start_data_time, end_data_time, average_rate;
     clock_t start_time, current_time, syn_start_time, syn_end_time, fin_start_time, fin_end_time;
+    HANDLE stats_thread_handle;
+
+
     SenderSocket();
     int Open(char* host, int port, int senderWindow, LinkProperties* lp);
     int Send(char* buf, int bytes);
     int Close(int senderWindow, LinkProperties* lp);
+    static UINT stats_thread(LPVOID pParam);
 };

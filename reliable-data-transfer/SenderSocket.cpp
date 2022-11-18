@@ -19,6 +19,24 @@ SenderSocket::SenderSocket() {
     eventQuit = CreateEvent(NULL, true, false, NULL);
 }
 
+UINT SenderSocket::stats_thread(LPVOID pParam)
+{
+    SenderSocket* ss = ((SenderSocket*)pParam);
+    int count = 0;
+    while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
+    {
+        double speed = ((ss->current_ack - ss->last_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / (2 * 1000000.0);
+        double current_speed_total = ss->average_rate * count;
+        count++;
+        ss->average_rate = (current_speed_total + speed) / (double)count;
+
+        printf("[%3d] B %4d (%.1f MB) N %4d T %d F 0 W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_seq, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq + 1, ss->timed_out_packets, speed, ss->estimated_rtt);
+        ss->last_base = ss->current_ack;
+    }
+
+    return 0;
+}
+
 int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* lp)
 {
     if (connection_open) return ALREADY_CONNECTED;
@@ -144,6 +162,8 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                     rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
                 }
 
+                stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, this, 0, NULL);
+
                 return STATUS_OK;
             }
         }
@@ -227,6 +247,8 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 {
     if (!connection_open) return NOT_CONNECTED;
 
+    SetEvent(eventQuit);
+    WaitForSingleObject(stats_thread_handle, INFINITE);
 
     end_data_time = clock();
 
