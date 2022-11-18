@@ -43,11 +43,30 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
     return 0;
 }
 
+int SenderSocket::sendData(int bytes) {
+    int iterator = (base % window_size);
+    if (sendto(sock, (char*)packets_buffer + iterator, sizeof(SenderDataHeader) + bytes, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
+    {
+        printf("failed sendto with %d\n", WSAGetLastError());
+        return FAILED_SEND;
+    };
+    return STATUS_OK;
+}
+
 UINT SenderSocket::worker_thread(LPVOID pParam)
 {
     SenderSocket* ss = ((SenderSocket*)pParam);
     while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
     {
+        //HANDLE events[] = { ss->data_received_event, ss->full };
+        //int ret = WaitForMultipleObjects(2, events, false, INFINITE); // TODO : check timeout
+
+        //switch (ret) {
+        //case WAIT_OBJECT_0:
+        //    break;
+        //case WAIT_OBJECT_0 + 1:
+        //    break;
+        //}
     }
 
     return 0;
@@ -185,6 +204,13 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                 stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, this, 0, NULL);
                 worker_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)worker_thread, this, 0, NULL);
                 window_size = senderWindow;
+                data_received_event = CreateEventA(0, FALSE, FALSE, 0);
+
+                int event_select = WSAEventSelect(sock, data_received_event, FD_READ | FD_CLOSE);
+                if (event_select == SOCKET_ERROR) {
+                    printf("event failed with %d\n", WSAGetLastError());
+                    return -1;
+                }
 
                 return STATUS_OK;
             }
@@ -212,19 +238,7 @@ int SenderSocket::Send(char*buf, int bytes)
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
         float packet_send_time = clock();
         current_time = clock() - start_time;
-        if (sendto(sock, (char*)packets_buffer + (base % window_size), sizeof(SenderDataHeader) + bytes, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
-        {
-            printf("failed sendto with %d\n", WSAGetLastError());
-            return FAILED_SEND;
-        };
-
-        data_received_event = CreateEventA(0, FALSE, FALSE, 0);
-
-        int event_select = WSAEventSelect(sock, data_received_event, FD_READ | FD_CLOSE);
-        if (event_select == SOCKET_ERROR) {
-            printf("event failed with %d\n", WSAGetLastError());
-            return -1;
-        }
+        sendData(bytes);
 
         struct sockaddr_in res_server;
         int res_server_size = sizeof(res_server);

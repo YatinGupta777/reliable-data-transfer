@@ -85,6 +85,8 @@ public:
     int Open(char* host, int port, int senderWindow, LinkProperties* lp);
     int Send(char* buf, int bytes);
     int Close(int senderWindow, LinkProperties* lp);
+    int sendData(int bytes);
+
     static UINT stats_thread(LPVOID pParam);
     static UINT worker_thread(LPVOID pParam);
 };
