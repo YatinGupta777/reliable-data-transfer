@@ -19,6 +19,9 @@ SenderSocket::SenderSocket() {
     eventQuit = CreateEvent(NULL, true, false, NULL);
 }
 
+SenderSocket:: ~SenderSocket() {
+}
+
 UINT SenderSocket::stats_thread(LPVOID pParam)
 {
     SenderSocket* ss = ((SenderSocket*)pParam);
@@ -32,6 +35,16 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
 
         printf("[%3d] B %4d (%.1f MB) N %4d T %d F 0 W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_seq, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq + 1, ss->timed_out_packets, speed, ss->estimated_rtt);
         ss->last_base = ss->current_ack;
+    }
+
+    return 0;
+}
+
+UINT SenderSocket::worker_thread(LPVOID pParam)
+{
+    SenderSocket* ss = ((SenderSocket*)pParam);
+    while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
+    {
     }
 
     return 0;
@@ -161,8 +174,9 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                     dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt))) / 1000;
                     rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
                 }
-
+                packets_buffer = new DataPacket[senderWindow];
                 stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, this, 0, NULL);
+                worker_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)worker_thread, this, 0, NULL);
 
                 return STATUS_OK;
             }
