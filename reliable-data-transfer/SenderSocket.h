@@ -36,10 +36,15 @@ public:
     Flags flags;
     DWORD seq; // must begin from 0
 };
-class DataPacket {
+class PacketData {
 public:
     SenderDataHeader sdh;
     char data[MAX_PKT_SIZE];
+};
+class Packet {
+public:
+    int size;
+    PacketData* pd;
 };
 class LinkProperties {
 public:
@@ -77,7 +82,7 @@ public:
     clock_t start_time, current_time, syn_start_time, syn_end_time, fin_start_time, fin_end_time;
     HANDLE stats_thread_handle, worker_thread_handle;
     HANDLE full, empty, data_received_event;
-    DataPacket* packets_buffer;
+    Packet* packets_buffer;
     int base, window_size;
 
     SenderSocket();
@@ -85,7 +90,7 @@ public:
     int Open(char* host, int port, int senderWindow, LinkProperties* lp);
     int Send(char* buf, int bytes);
     int Close(int senderWindow, LinkProperties* lp);
-    int sendData(int bytes);
+    int sendData();
 
     static UINT stats_thread(LPVOID pParam);
     static UINT worker_thread(LPVOID pParam);

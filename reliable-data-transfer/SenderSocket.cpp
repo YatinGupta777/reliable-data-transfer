@@ -43,9 +43,10 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
     return 0;
 }
 
-int SenderSocket::sendData(int bytes) {
+int SenderSocket::sendData() {
     int iterator = (base % window_size);
-    if (sendto(sock, (char*)packets_buffer + iterator, sizeof(SenderDataHeader) + bytes, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
+
+    if (sendto(sock, (char*)packets_buffer[iterator].pd, packets_buffer[iterator].size, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
     {
         printf("failed sendto with %d\n", WSAGetLastError());
         return FAILED_SEND;
@@ -200,7 +201,7 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                 empty = CreateSemaphore(NULL, senderWindow, senderWindow, NULL);
                 full = CreateSemaphore(NULL, 0, senderWindow, NULL);
 
-                packets_buffer = new DataPacket[senderWindow];
+                packets_buffer = new Packet[senderWindow];
                 stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, this, 0, NULL);
                 worker_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)worker_thread, this, 0, NULL);
                 window_size = senderWindow;
@@ -225,20 +226,24 @@ int SenderSocket::Send(char*buf, int bytes)
     HANDLE events[] = { empty };
    // WaitForMultipleObjects(1, events, false, INFINITE);
 
-    DataPacket* data_packet = new DataPacket();
-    data_packet->sdh.seq = current_seq;
-    memcpy(data_packet->data, buf, bytes);
+    Packet* packet = new Packet();
+    PacketData* packet_data = new PacketData();
+
+    packet_data->sdh.seq = current_seq;
+    memcpy(packet_data->data, buf, bytes);
 
     int packet_position = current_seq % window_size;
+    packet->size = sizeof(SenderDataHeader) + bytes;
+    packet->pd = packet_data;
 
-    memcpy(packets_buffer + packet_position, data_packet, sizeof(DataPacket));
+    memcpy(packets_buffer + packet_position, packet, sizeof(Packet));
 
    // ReleaseSemaphore(full, 1, NULL);
 
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
         float packet_send_time = clock();
         current_time = clock() - start_time;
-        sendData(bytes);
+        sendData();
 
         struct sockaddr_in res_server;
         int res_server_size = sizeof(res_server);
