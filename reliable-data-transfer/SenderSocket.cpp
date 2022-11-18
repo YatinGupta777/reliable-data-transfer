@@ -19,6 +19,7 @@ SenderSocket::SenderSocket() {
     base = 0;
     window_size = 0;
     eventQuit = CreateEvent(NULL, true, false, NULL);
+    data_transfer_complete = false;
 }
 
 SenderSocket:: ~SenderSocket() {
@@ -54,20 +55,66 @@ int SenderSocket::sendData() {
     return STATUS_OK;
 }
 
+int SenderSocket::receiveData() {
+
+    struct sockaddr_in res_server;
+    int res_server_size = sizeof(res_server);
+    char* res_buf = new char[sizeof(ReceiverHeader)];
+
+    int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+
+    if (bytes_received == SOCKET_ERROR)
+    {
+        printf("failed recvfrom with %d\n", WSAGetLastError());
+        return FAILED_RECV;
+    };
+
+    ReceiverHeader* rh = (ReceiverHeader*)res_buf;
+
+    current_ack = rh->ackSeq;
+    current_seq++;
+    bytes_acked += MAX_PKT_SIZE;
+        /*float packet_time = (clock() - packet_send_time) / 1000;
+        estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
+        dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
+        rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));*/
+    ReleaseSemaphore(empty, 1, NULL);
+    return STATUS_OK;
+    
+}
+
 UINT SenderSocket::worker_thread(LPVOID pParam)
 {
     SenderSocket* ss = ((SenderSocket*)pParam);
-    while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
-    {
-        //HANDLE events[] = { ss->data_received_event, ss->full };
-        //int ret = WaitForMultipleObjects(2, events, false, INFINITE); // TODO : check timeout
 
-        //switch (ret) {
-        //case WAIT_OBJECT_0:
-        //    break;
-        //case WAIT_OBJECT_0 + 1:
-        //    break;
-        //}
+    int kernelBuffer = 20e6; // 20 meg
+    if (setsockopt(ss->sock, SOL_SOCKET, SO_RCVBUF, (const char *) & kernelBuffer, sizeof(int)) == SOCKET_ERROR)
+        return 0;
+        
+    kernelBuffer = 20e6; // 20 meg
+    if (setsockopt(ss->sock, SOL_SOCKET, SO_SNDBUF, (const char*) &kernelBuffer, sizeof(int)) == SOCKET_ERROR)
+        return 0;
+        
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
+    while (!ss->data_transfer_complete)
+    {
+        HANDLE events[] = { ss->data_received_event, ss->full, ss->eventQuit };
+        int ret = WaitForMultipleObjects(3, events, false, INFINITE); // TODO : check timeout
+
+        switch (ret) {
+            case WAIT_OBJECT_0:
+                ss->receiveData();
+                break;
+            case WAIT_OBJECT_0 + 1:
+                ss->sendData();
+                break;
+            case WAIT_OBJECT_0 + 2:
+                ss->data_transfer_complete = true;
+                break;
+            default:
+                break;
+        }
     }
 
     return 0;
@@ -224,7 +271,7 @@ int SenderSocket::Send(char*buf, int bytes)
     if (!connection_open) return NOT_CONNECTED;
 
     HANDLE events[] = { empty };
-   // WaitForMultipleObjects(1, events, false, INFINITE);
+    WaitForMultipleObjects(1, events, false, INFINITE);
 
     Packet* packet = new Packet();
     PacketData* packet_data = new PacketData();
@@ -238,55 +285,57 @@ int SenderSocket::Send(char*buf, int bytes)
 
     memcpy(packets_buffer + packet_position, packet, sizeof(Packet));
 
-   // ReleaseSemaphore(full, 1, NULL);
+    ReleaseSemaphore(full, 1, NULL);
 
-    for (int i = 0; i < MAX_ATTEMPTS; i++) {
-        float packet_send_time = clock();
-        current_time = clock() - start_time;
-        sendData();
+    return STATUS_OK;
 
-        struct sockaddr_in res_server;
-        int res_server_size = sizeof(res_server);
-        char* res_buf = new char[sizeof(ReceiverHeader)];
+    //for (int i = 0; i < MAX_ATTEMPTS; i++) {
+    //    float packet_send_time = clock();
+    //    current_time = clock() - start_time;
+    //    sendData();
 
-        int available = WaitForSingleObject(data_received_event, rto * 1000);
+    //    struct sockaddr_in res_server;
+    //    int res_server_size = sizeof(res_server);
+    //    char* res_buf = new char[sizeof(ReceiverHeader)];
 
-        if (available == WAIT_TIMEOUT) {
-            timed_out_packets++;
-            continue;
-        }
+    //    int available = WaitForSingleObject(data_received_event, rto * 1000);
 
-        if (available == WAIT_FAILED)
-        {
-            printf("failed recvfrom with %d\n", WSAGetLastError());
-            return FAILED_RECV;
-        };
+    //    if (available == WAIT_TIMEOUT) {
+    //        timed_out_packets++;
+    //        continue;
+    //    }
 
-            int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+    //    if (available == WAIT_FAILED)
+    //    {
+    //        printf("failed recvfrom with %d\n", WSAGetLastError());
+    //        return FAILED_RECV;
+    //    };
 
-            if (bytes_received == SOCKET_ERROR)
-            {
-                printf("failed recvfrom with %d\n", WSAGetLastError());
-                return FAILED_RECV;
-            };
+    //        int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
 
-            ReceiverHeader* rh = (ReceiverHeader*)res_buf;
-            
-            if (rh->ackSeq == current_seq + 1) {
-                current_ack = rh->ackSeq;
-                current_seq++;
-                bytes_acked += MAX_PKT_SIZE;
-                if (i == 0)
-                {
-                    float packet_time = (clock() - packet_send_time) / 1000;
-                    estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
-                    dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
-                    rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
-                }
-                return STATUS_OK;
-            }           
-    }
-    return TIMEOUT;
+    //        if (bytes_received == SOCKET_ERROR)
+    //        {
+    //            printf("failed recvfrom with %d\n", WSAGetLastError());
+    //            return FAILED_RECV;
+    //        };
+
+    //        ReceiverHeader* rh = (ReceiverHeader*)res_buf;
+    //        
+    //        if (rh->ackSeq == current_seq + 1) {
+    //            current_ack = rh->ackSeq;
+    //            current_seq++;
+    //            bytes_acked += MAX_PKT_SIZE;
+    //            if (i == 0)
+    //            {
+    //                float packet_time = (clock() - packet_send_time) / 1000;
+    //                estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
+    //                dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
+    //                rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
+    //            }
+    //            return STATUS_OK;
+    //        }           
+    //}
+    //return TIMEOUT;
 }
 
 
@@ -296,6 +345,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 
     SetEvent(eventQuit);
     WaitForSingleObject(stats_thread_handle, INFINITE);
+    WaitForSingleObject(worker_thread_handle, INFINITE);
 
     end_data_time = clock();
 

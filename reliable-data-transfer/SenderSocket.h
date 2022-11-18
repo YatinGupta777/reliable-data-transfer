@@ -84,6 +84,7 @@ public:
     HANDLE full, empty, data_received_event;
     Packet* packets_buffer;
     int base, window_size;
+    bool data_transfer_complete;
 
     SenderSocket();
     ~SenderSocket();
@@ -91,6 +92,7 @@ public:
     int Send(char* buf, int bytes);
     int Close(int senderWindow, LinkProperties* lp);
     int sendData();
+    int receiveData();
 
     static UINT stats_thread(LPVOID pParam);
     static UINT worker_thread(LPVOID pParam);
