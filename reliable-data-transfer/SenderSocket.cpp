@@ -44,8 +44,8 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
     return 0;
 }
 
-int SenderSocket::sendData() {
-    int iterator = (base % window_size);
+int SenderSocket::sendData(int pkt_no) {
+    int iterator = (pkt_no % window_size);
 
     if (sendto(sock, (char*)packets_buffer[iterator].pd, packets_buffer[iterator].size, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
     {
@@ -97,6 +97,8 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
         
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
+    int next_pkt = 0;
+
     while (!ss->close_called || (ss->current_ack < ss->current_seq))
     {
         HANDLE events[] = { ss->data_received_event, ss->full, ss->eventQuit };
@@ -107,7 +109,8 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
                 ss->receiveData();
                 break;
             case WAIT_OBJECT_0 + 1:
-                ss->sendData();
+                ss->sendData(next_pkt);
+                next_pkt++;
                 break;
             case WAIT_OBJECT_0 + 2:
                 ss->close_called = true;
