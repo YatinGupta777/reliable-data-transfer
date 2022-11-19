@@ -20,6 +20,9 @@ SenderSocket::SenderSocket() {
     window_size = 0;
     eventQuit = CreateEvent(NULL, true, false, NULL);
     close_called = false;
+    retry_count = 0;
+    duplicate_ack = 0;
+    fast_retransmit = 0;
 }
 
 SenderSocket:: ~SenderSocket() {
@@ -37,7 +40,7 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
         count++;
         ss->average_rate = (current_speed_total + speed) / (double)count;
 
-        printf("[%3d] B %4d (%.1f MB) N %4d T %d F %d W %d S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, 0, ss->window_size, speed, ss->estimated_rtt);
+        printf("[%3d] B %4d (%.1f MB) N %4d T %d F %d W %d S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, ss->fast_retransmit, ss->window_size, speed, ss->estimated_rtt);
     }
 
     return 0;
@@ -70,17 +73,29 @@ int SenderSocket::receiveData() {
 
     ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
-    current_ack = rh->ackSeq;
-    bytes_acked += MAX_PKT_SIZE;
 
         /*float packet_time = (clock() - packet_send_time) / 1000;
         estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
         dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
         rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));*/
-    if (current_ack > current_base) {
-        int empty_slots = current_ack - current_base;
-        ReleaseSemaphore(empty, 1, NULL);
+    if (rh->ackSeq > current_base) {
+        current_ack = rh->ackSeq;
+        int pkts_acked = current_ack - current_base;
+        bytes_acked += (pkts_acked * MAX_PKT_SIZE);
+        ReleaseSemaphore(empty, pkts_acked, NULL);
         current_base = current_ack;
+        retry_count = 0;
+        duplicate_ack = 0;
+    }
+    else if (rh->ackSeq == current_base)
+    {
+        duplicate_ack++;
+        if (duplicate_ack == 3)
+        {
+            sendData(current_base);
+            retry_count++;
+            fast_retransmit++;
+        }
     }
     
     return STATUS_OK;
@@ -111,6 +126,7 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
         switch (ret) {
             case WAIT_TIMEOUT:
                 ss->timed_out_packets++;
+                ss->retry_count++;
                 ss->sendData(ss->current_base);
                 break;
             case WAIT_OBJECT_0:

@@ -84,7 +84,7 @@ public:
     HANDLE stats_thread_handle, worker_thread_handle;
     HANDLE full, empty, data_received_event;
     Packet* packets_buffer;
-    int base, window_size;
+    int base, window_size, retry_count, duplicate_ack, fast_retransmit;
     bool close_called;
 
     SenderSocket();
