@@ -14,7 +14,7 @@ SenderSocket::SenderSocket() {
     current_ack = 0;
     estimated_rtt = 0;
     dev_rtt = 0;
-    last_base = 0;
+    current_base = 0;
     average_rate = 0;
     base = 0;
     window_size = 0;
@@ -32,13 +32,12 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
     int count = 0;
     while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
     {
-        double speed = ((ss->current_ack - ss->last_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / (2 * 1000000.0);
+        double speed = ((ss->current_ack - ss->current_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / (2 * 1000000.0);
         double current_speed_total = ss->average_rate * count;
         count++;
         ss->average_rate = (current_speed_total + speed) / (double)count;
 
-        printf("[%3d] B %4d (%.1f MB) N %4d T %d F 0 W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_seq, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq + 1, ss->timed_out_packets, speed, ss->estimated_rtt);
-        ss->last_base = ss->current_ack;
+        printf("[%3d] B %4d (%.1f MB) N %4d T %d F 0 W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, speed, ss->estimated_rtt);
     }
 
     return 0;
@@ -74,6 +73,7 @@ int SenderSocket::receiveData() {
     current_ack = rh->ackSeq;
     bytes_acked += MAX_PKT_SIZE;
 
+    current_base = current_ack;
         /*float packet_time = (clock() - packet_send_time) / 1000;
         estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
         dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));

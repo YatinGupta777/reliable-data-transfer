@@ -73,7 +73,7 @@ public:
     SOCKET sock;
     struct sockaddr_in server;
     bool connection_open;
-    int current_seq, current_ack, timed_out_packets, last_base;
+    int current_seq, current_ack, timed_out_packets, current_base;
     long long int bytes_acked;
     HANDLE	eventQuit;
     DWORD received_checksum;
