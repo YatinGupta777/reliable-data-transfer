@@ -19,7 +19,7 @@ SenderSocket::SenderSocket() {
     base = 0;
     window_size = 0;
     eventQuit = CreateEvent(NULL, true, false, NULL);
-    data_transfer_complete = false;
+    close_called = false;
 }
 
 SenderSocket:: ~SenderSocket() {
@@ -72,8 +72,8 @@ int SenderSocket::receiveData() {
     ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
     current_ack = rh->ackSeq;
-    current_seq++;
     bytes_acked += MAX_PKT_SIZE;
+
         /*float packet_time = (clock() - packet_send_time) / 1000;
         estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
         dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
@@ -97,7 +97,7 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
         
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
-    while (!ss->data_transfer_complete)
+    while (!ss->close_called || (ss->current_ack < ss->current_seq))
     {
         HANDLE events[] = { ss->data_received_event, ss->full, ss->eventQuit };
         int ret = WaitForMultipleObjects(3, events, false, INFINITE); // TODO : check timeout
@@ -110,7 +110,7 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
                 ss->sendData();
                 break;
             case WAIT_OBJECT_0 + 2:
-                ss->data_transfer_complete = true;
+                ss->close_called = true;
                 break;
             default:
                 break;
@@ -284,6 +284,7 @@ int SenderSocket::Send(char*buf, int bytes)
     packet->pd = packet_data;
 
     memcpy(packets_buffer + packet_position, packet, sizeof(Packet));
+    current_seq++;
 
     ReleaseSemaphore(full, 1, NULL);
 
@@ -371,20 +372,13 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
             return FAILED_SEND;
         };
 
-        fd_set fd;
-        FD_ZERO(&fd); // clear the set
-        FD_SET(sock, &fd); // add your socket to the set
-        timeval tp;
-        tp.tv_sec = rto;
-        tp.tv_usec = (rto - floor(rto)) * 1000000;
-
         struct sockaddr_in res_server;
         int res_server_size = sizeof(res_server);
         char* res_buf = new char[sizeof(ReceiverHeader)];
 
-        int available = select(0, &fd, NULL, NULL, &tp);
+        int available = WaitForSingleObject(data_received_event, rto*1000);
 
-        if (available == 0) {
+        if (available == WAIT_TIMEOUT) {
             continue;
         }
 
@@ -392,30 +386,28 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
         {
             printf("failed recvfrom with %d\n", WSAGetLastError());
             return FAILED_RECV;
+        }; 
+
+        int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+
+        if (bytes_received == SOCKET_ERROR)
+        {
+            printf("failed recvfrom with %d\n", WSAGetLastError());
+            return FAILED_RECV;
         };
 
-        if (available > 0)
-        {
-            int bytes_received = recvfrom(sock, res_buf, sizeof(ReceiverHeader), 0, (struct sockaddr*)&res_server, &res_server_size);
+        ReceiverHeader* rh = (ReceiverHeader*)res_buf;
 
-            if (bytes_received == SOCKET_ERROR)
-            {
-                printf("failed recvfrom with %d\n", WSAGetLastError());
-                return FAILED_RECV;
-            };
-
-            ReceiverHeader* rh = (ReceiverHeader*)res_buf;
-
-            if (rh->flags.FIN == 1 && rh->flags.ACK == 1) {
-                current_time = clock() - start_time;
-                fin_end_time = current_time;
-                received_checksum = rh->recvWnd;
-                current_ack = rh->ackSeq;
-                printf("[%.3f] <-- FIN-ACK %d window %X\n", (float)(current_time / (float)1000), rh->ackSeq, rh->recvWnd);
-                connection_open = false;
-                return STATUS_OK;
-            }
+        if (rh->flags.FIN == 1 && rh->flags.ACK == 1) {
+            current_time = clock() - start_time;
+            fin_end_time = current_time;
+            received_checksum = rh->recvWnd;
+            current_ack = rh->ackSeq;
+            printf("[%.3f] <-- FIN-ACK %d window %X\n", (float)(current_time / (float)1000), rh->ackSeq, rh->recvWnd);
+            connection_open = false;
+            return STATUS_OK;
         }
+        
     }
     return TIMEOUT;
 }

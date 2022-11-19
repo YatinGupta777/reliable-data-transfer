@@ -84,7 +84,7 @@ public:
     HANDLE full, empty, data_received_event;
     Packet* packets_buffer;
     int base, window_size;
-    bool data_transfer_complete;
+    bool close_called;
 
     SenderSocket();
     ~SenderSocket();
