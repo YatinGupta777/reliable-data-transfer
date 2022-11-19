@@ -62,7 +62,7 @@ int SenderSocket::sendData(int pkt_no) {
     return STATUS_OK;
 }
 
-int SenderSocket::receiveData() {
+int SenderSocket::receiveData(bool& retransmitted) {
 
     struct sockaddr_in res_server;
     int res_server_size = sizeof(res_server);
@@ -109,6 +109,7 @@ int SenderSocket::receiveData() {
             sendData(current_base);
             retry_count++;
             fast_retransmit++;
+            retransmitted = true;
         }
     }
     
@@ -131,20 +132,33 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
     int next_pkt = 0;
+    int timeout = ss->rto * 1000;
+    int timerExpire = clock() + (ss->rto * 1000) * CLOCKS_PER_SEC;
+    bool retransmitted = false;
+    HANDLE events[] = { ss->data_received_event, ss->full, ss->eventQuit };
 
     while (!ss->close_called || (ss->current_ack < ss->current_seq))
     {
-        HANDLE events[] = { ss->data_received_event, ss->full, ss->eventQuit };
-        int ret = WaitForMultipleObjects(3, events, false, ss->rto * 1000); // TODO : check timeout
+        if (next_pkt > ss->current_base)
+        {
+            timeout = timerExpire - clock();
+        }
+        else
+        {
+            timeout = INFINITE;
+        }
+
+        int ret = WaitForMultipleObjects(3, events, false, timeout); 
 
         switch (ret) {
             case WAIT_TIMEOUT:
                 ss->timed_out_packets++;
                 ss->retry_count++;
+                retransmitted = true;
                 ss->sendData(ss->current_base);
                 break;
             case WAIT_OBJECT_0:
-                ss->receiveData();
+                ss->receiveData(retransmitted);
                 break;
             case WAIT_OBJECT_0 + 1:
                 ss->sendData(next_pkt);
@@ -156,6 +170,13 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
             default:
                 break;
         }
+
+        if ((next_pkt == ss->current_base) || retransmitted)
+        {
+            retransmitted = false;
+            timerExpire = clock() + (ss->rto * 1000) * CLOCKS_PER_SEC;
+        }
+
     }
 
     return 0;
