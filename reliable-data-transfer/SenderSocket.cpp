@@ -18,7 +18,7 @@ SenderSocket::SenderSocket() {
     average_rate = 0;
     base = 0;
     window_size = 0;
-    eventQuit = CreateEvent(NULL, true, false, NULL);
+    eventQuit = CreateEvent(NULL, false, false, NULL);
     close_called = false;
     retry_count = 0;
     duplicate_ack = 0;
@@ -373,6 +373,7 @@ int SenderSocket::Close(int senderWindow, LinkProperties* lp)
 
     SetEvent(eventQuit);
     WaitForSingleObject(stats_thread_handle, INFINITE);
+    SetEvent(eventQuit);
     WaitForSingleObject(worker_thread_handle, INFINITE);
 
     end_data_time = clock();
