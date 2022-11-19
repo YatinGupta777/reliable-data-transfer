@@ -23,6 +23,7 @@ SenderSocket::SenderSocket() {
     retry_count = 0;
     duplicate_ack = 0;
     fast_retransmit = 0;
+    last_released = 0;
 }
 
 SenderSocket:: ~SenderSocket() {
@@ -81,8 +82,11 @@ int SenderSocket::receiveData() {
         current_ack = rh->ackSeq;
         int pkts_acked = current_ack - current_base;
         bytes_acked += (pkts_acked * MAX_PKT_SIZE);
-        ReleaseSemaphore(empty, pkts_acked, NULL);
         current_base = current_ack;
+        int effective_window = min(window_size, rh->recvWnd);
+        int new_released = current_base + effective_window - last_released;
+        ReleaseSemaphore(empty, new_released, NULL);
+        last_released += new_released;
 
         if (retry_count == 0)
         {
@@ -282,14 +286,14 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
                     rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
                 }
 
-                empty = CreateSemaphore(NULL, senderWindow, senderWindow, NULL);
-                full = CreateSemaphore(NULL, 0, senderWindow, NULL);
-
                 packets_buffer = new Packet[senderWindow];
                 stats_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)stats_thread, this, 0, NULL);
                 worker_thread_handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)worker_thread, this, 0, NULL);
                 window_size = senderWindow;
                 data_received_event = CreateEventA(0, FALSE, FALSE, 0);
+                last_released = min(window_size, rh->recvWnd);
+                empty = CreateSemaphore(NULL, last_released, senderWindow, NULL);
+                full = CreateSemaphore(NULL, 0, senderWindow, NULL);
 
                 int event_select = WSAEventSelect(sock, data_received_event, FD_READ | FD_CLOSE);
                 if (event_select == SOCKET_ERROR) {
