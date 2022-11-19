@@ -37,7 +37,7 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
         count++;
         ss->average_rate = (current_speed_total + speed) / (double)count;
 
-        printf("[%3d] B %4d (%.1f MB) N %4d T %d F 0 W 1 S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, speed, ss->estimated_rtt);
+        printf("[%3d] B %4d (%.1f MB) N %4d T %d F %d W %d S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, 0, ss->window_size, speed, ss->estimated_rtt);
     }
 
     return 0;
@@ -73,12 +73,16 @@ int SenderSocket::receiveData() {
     current_ack = rh->ackSeq;
     bytes_acked += MAX_PKT_SIZE;
 
-    current_base = current_ack;
         /*float packet_time = (clock() - packet_send_time) / 1000;
         estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
         dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
         rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));*/
-    ReleaseSemaphore(empty, 1, NULL);
+    if (current_ack > current_base) {
+        int empty_slots = current_ack - current_base;
+        ReleaseSemaphore(empty, 1, NULL);
+        current_base = current_ack;
+    }
+    
     return STATUS_OK;
     
 }
@@ -102,10 +106,11 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
     while (!ss->close_called || (ss->current_ack < ss->current_seq))
     {
         HANDLE events[] = { ss->data_received_event, ss->full, ss->eventQuit };
-        int ret = WaitForMultipleObjects(3, events, false, INFINITE); // TODO : check timeout
+        int ret = WaitForMultipleObjects(3, events, false, ss->rto * 1000); // TODO : check timeout
 
         switch (ret) {
             case WAIT_TIMEOUT:
+                ss->timed_out_packets++;
                 ss->sendData(ss->current_base);
                 break;
             case WAIT_OBJECT_0:

@@ -17,6 +17,7 @@
 
 #define MAX_SYN_ATTEMPTS 3
 #define MAX_ATTEMPTS 5
+#define MAX_DATA_ATTEMPTS 50
 
 #define ALPHA 0.125
 #define BETA 0.25
