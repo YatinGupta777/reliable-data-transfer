@@ -105,6 +105,9 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
         int ret = WaitForMultipleObjects(3, events, false, INFINITE); // TODO : check timeout
 
         switch (ret) {
+            case WAIT_TIMEOUT:
+                ss->sendData(ss->current_base);
+                break;
             case WAIT_OBJECT_0:
                 ss->receiveData();
                 break;
