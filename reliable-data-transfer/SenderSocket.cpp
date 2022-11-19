@@ -33,12 +33,14 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
 {
     SenderSocket* ss = ((SenderSocket*)pParam);
     int count = 0;
+    int last_pkt_acked = 0;
     while (WaitForSingleObject(ss->eventQuit, 2000) == WAIT_TIMEOUT)
     {
-        double speed = ((ss->current_ack - ss->current_base) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / (2 * 1000000.0);
+        double speed = ((ss->current_ack - last_pkt_acked) * 8 * (MAX_PKT_SIZE - sizeof(SenderDataHeader))) / (2 * 1000000.0);
         double current_speed_total = ss->average_rate * count;
         count++;
         ss->average_rate = (current_speed_total + speed) / (double)count;
+        last_pkt_acked = ss->current_ack;
 
         printf("[%3d] B %4d (%.1f MB) N %4d T %d F %d W %d S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, ss->fast_retransmit, ss->window_size, speed, ss->estimated_rtt);
     }
@@ -53,7 +55,7 @@ int SenderSocket::sendData(int pkt_no) {
 
     if (sendto(sock, (char*)packets_buffer[iterator].pd, packets_buffer[iterator].size, 0, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
     {
-        printf("failed sendto with %d\n", WSAGetLastError());
+        //printf("failed sendto with %d\n", WSAGetLastError());
         return FAILED_SEND;
     };
     return STATUS_OK;
@@ -85,7 +87,7 @@ int SenderSocket::receiveData() {
         if (retry_count == 0)
         {
             int slot = (current_ack - 1) % window_size;
-            double packet_time = (clock() - packets_buffer[slot].txTime)/1000;
+            double packet_time = (clock() - packets_buffer[slot].txTime) / 1000.0;
             estimated_rtt = (((1 - ALPHA) * estimated_rtt) + (ALPHA * packet_time));
             dev_rtt = (((1 - BETA) * dev_rtt) + (BETA * abs(packet_time - estimated_rtt)));
             rto = (estimated_rtt + (4 * max(dev_rtt, 0.01)));
