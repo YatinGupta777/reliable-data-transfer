@@ -104,6 +104,6 @@ int main(int argc, char** argv)
         return 0;
     }
     printf("Main:\ttransfer finished in %.3f sec, %.2f Kbps, checksum %X\n", (ss.end_data_time - ss.start_data_time) / 1000.0, ss.average_rate*1000, ss.received_checksum);
-    printf("Main:\testRTT %.3f, ideal rate %.2f Kbps", ss.estimated_rtt, (((MAX_PKT_SIZE-sizeof(SenderDataHeader)) * 8) / ss.estimated_rtt)/ 1000.0);
+    printf("Main:\testRTT %.3f, ideal rate %.2f Kbps", ss.estimated_rtt, (((MAX_PKT_SIZE-sizeof(SenderDataHeader)) * 8 * senderWindow) / ss.estimated_rtt)/ 1000.0);
 }
 //C:\Users\yatingupta\source\repos\YatinGupta777\reliable-data-transfer\x64\Debug
