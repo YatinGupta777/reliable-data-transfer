@@ -45,6 +45,7 @@ public:
 class Packet {
 public:
     int size;
+    clock_t txTime;
     PacketData* pd;
 };
 class LinkProperties {
@@ -78,7 +79,7 @@ public:
     long long int bytes_acked;
     HANDLE	eventQuit;
     DWORD received_checksum;
-    float rto, estimated_rtt, dev_rtt;
+    double rto, estimated_rtt, dev_rtt;
     double start_data_time, end_data_time, average_rate;
     clock_t start_time, current_time, syn_start_time, syn_end_time, fin_start_time, fin_end_time;
     HANDLE stats_thread_handle, worker_thread_handle;
