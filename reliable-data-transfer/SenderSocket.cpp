@@ -174,7 +174,7 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
         if (retransmitted)
         {
             retransmitted = false;
-            ss->packets_buffer[ss->current_base].txTime = clock();
+            ss->packets_buffer[ss->current_base % ss->window_size].txTime = clock();
         }
 
     }
