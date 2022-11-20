@@ -75,10 +75,6 @@ int main(int argc, char** argv)
 
     char* charBuf = (char*)dwordBuf; // this buffer goes into socket
     UINT64 byteBufferSize = dwordBufSize << 2; // convert to bytes
-
-    Checksum cs;
-    DWORD sent_checksum = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
-
     UINT64 off = 0; // current position in buffer
     ss.start_data_time = clock();
     while (off < byteBufferSize)
@@ -98,6 +94,9 @@ int main(int argc, char** argv)
         printf("Main : connect failed with status %d", status);
         return 0;
     }
+
+    Checksum cs;
+    DWORD sent_checksum = cs.CRC32((unsigned char*)charBuf, byteBufferSize);
 
     if (ss.received_checksum != sent_checksum) {
         printf("Receiver sent wrong checksum");
