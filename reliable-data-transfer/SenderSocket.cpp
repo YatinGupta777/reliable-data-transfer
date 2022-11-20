@@ -141,7 +141,7 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
     {
         if (next_pkt > ss->current_base)
         {
-            timeout = timerExpire - clock();
+            timeout = (ss->packets_buffer[ss->current_base % ss->window_size].txTime - clock()) / (CLOCKS_PER_SEC)+ (1000.0 * ss->rto);
         }
         else
         {
@@ -171,10 +171,10 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
                 break;
         }
 
-        if ((next_pkt == ss->current_base) || retransmitted)
+        if (retransmitted)
         {
             retransmitted = false;
-            timerExpire = clock() + (ss->rto * 1000) * CLOCKS_PER_SEC;
+            ss->packets_buffer[ss->current_base].txTime = clock();
         }
 
     }
