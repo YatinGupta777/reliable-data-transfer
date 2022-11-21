@@ -86,7 +86,7 @@ public:
     HANDLE full, empty, data_received_event;
     Packet* packets_buffer;
     int base, window_size, retry_count, duplicate_ack, fast_retransmit, last_released, effective_window;
-    bool close_called;
+    bool close_called, exception_exit;
 
     SenderSocket();
     ~SenderSocket();

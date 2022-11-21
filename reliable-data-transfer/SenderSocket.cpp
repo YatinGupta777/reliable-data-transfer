@@ -25,6 +25,7 @@ SenderSocket::SenderSocket() {
     fast_retransmit = 0;
     last_released = 0;
     effective_window = 0;
+    exception_exit = false;
 }
 
 SenderSocket:: ~SenderSocket() {
@@ -166,6 +167,12 @@ UINT SenderSocket::worker_thread(LPVOID pParam)
         else
         {
             timeout = INFINITE;
+        }
+
+        if (ss->retry_count > MAX_DATA_ATTEMPTS)
+        {
+            ss->exception_exit = true;
+            printf("Max retry attempts exceeded\n");
         }
 
         int ret = WaitForMultipleObjects(3, events, false, timeout); 
@@ -351,6 +358,17 @@ int SenderSocket::Open(char* host, int port, int senderWindow, LinkProperties* l
 int SenderSocket::Send(char*buf, int bytes)
 {
     if (!connection_open) return NOT_CONNECTED;
+
+    if (exception_exit)
+    {
+        SetEvent(eventQuit);
+        WaitForSingleObject(stats_thread_handle, INFINITE);
+        CloseHandle(stats_thread_handle);
+        SetEvent(eventQuit);
+        WaitForSingleObject(worker_thread_handle, INFINITE);
+        CloseHandle(worker_thread_handle);
+        return FAILED_SEND;
+    }
 
     HANDLE events[] = { empty };
     WaitForMultipleObjects(1, events, false, INFINITE);
