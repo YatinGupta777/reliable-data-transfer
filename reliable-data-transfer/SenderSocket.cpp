@@ -24,6 +24,7 @@ SenderSocket::SenderSocket() {
     duplicate_ack = 0;
     fast_retransmit = 0;
     last_released = 0;
+    effective_window = 0;
 }
 
 SenderSocket:: ~SenderSocket() {
@@ -62,7 +63,7 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
         ss->average_rate = (current_speed_total + speed) / (double)count;
         last_pkt_acked = ss->current_ack;
 
-        printf("[%3d] B %6d (%3.1f MB) N %6d T %d F %d W %d S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, ss->fast_retransmit, ss->window_size, speed, ss->estimated_rtt);
+        printf("[%3d] B %6d (%3.1f MB) N %6d T %d F %d W %d S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, ss->fast_retransmit, ss->effective_window, speed, ss->estimated_rtt);
     }
 
     return 0;
@@ -102,7 +103,7 @@ int SenderSocket::receiveData(bool& retransmitted) {
         int pkts_acked = current_ack - current_base;
         bytes_acked += (pkts_acked * MAX_PKT_SIZE);
         current_base = current_ack;
-        int effective_window = min(window_size, rh->recvWnd);
+        effective_window = min(window_size, rh->recvWnd);
         int new_released = current_base + effective_window - last_released;
         ReleaseSemaphore(empty, new_released, NULL);
         last_released += new_released;
