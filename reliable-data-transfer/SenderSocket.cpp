@@ -30,24 +30,6 @@ SenderSocket::SenderSocket() {
 
 SenderSocket:: ~SenderSocket() {
     delete[] packets_buffer;
-
-    DWORD thread_code;
-    GetExitCodeThread(worker_thread_handle, &thread_code);
-    if (thread_code == STILL_ACTIVE)
-    {
-        SetEvent(eventQuit);
-        WaitForSingleObject(worker_thread_handle, INFINITE);
-        CloseHandle(worker_thread_handle);
-    }
-
-    GetExitCodeThread(stats_thread_handle, &thread_code);
-    if (thread_code == STILL_ACTIVE)
-    {
-        SetEvent(eventQuit);
-        WaitForSingleObject(stats_thread_handle, INFINITE);
-        CloseHandle(stats_thread_handle);
-    }
-
     WSACleanup();
 }
 
