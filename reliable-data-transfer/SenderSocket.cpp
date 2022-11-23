@@ -64,7 +64,7 @@ UINT SenderSocket::stats_thread(LPVOID pParam)
         ss->average_rate = (current_speed_total + speed) / (double)count;
         last_pkt_acked = ss->current_ack;
 
-        printf("[%3d] B %6d (%3.1f MB) N %6d T %d F %d W %d S %.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, ss->fast_retransmit, ss->effective_window, speed, ss->estimated_rtt);
+        printf("[%3d] B %6d (%5.1f MB) N %6d T %d F %3d W %5d S %6.3f Mbps RTT %.3f\n", (clock() - ss->start_time) / 1000, ss->current_base, ((float)ss->bytes_acked) / 1000000.0, ss->current_seq, ss->timed_out_packets, ss->fast_retransmit, ss->effective_window, speed, ss->estimated_rtt);
     }
 
     return 0;
